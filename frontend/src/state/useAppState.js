@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import {
-  ADMIN_EMAIL, LEADER_EMAIL, initialGroupsData, initialAssignmentItems, initialKanbanTasks,
-  teamBoardDataSeed, initialCalendarEvents, initialAdminUsersList, initialTasks, initialModerationQueue
+  ADMIN_EMAIL, LEADER_EMAIL, initialGroupsData, initialTasks,
+  initialCalendarEvents, initialAdminUsersList, initialModerationQueue, skillOptionsList
 } from '../data/seedData.js';
 
 const initialState = {
@@ -10,7 +10,7 @@ const initialState = {
   loginEmail: '', loginPassword: '', loginShowPw: false, loginError: '',
   su: { firstName: '', lastName: '', nickname: '', studentId: '', gender: '', birthdate: '', email: '', phone: '', skills: [], skillOther: '', password: '', confirmPassword: '' },
   signupError: '',
-  cg: { code: '', name: '', teacher: '', maxMembers: '6' },
+  cg: { code: '', name: '', teacher: '' },
   cgError: '',
   joinDigits: ['', '', '', '', '', ''],
   joinError: '',
@@ -20,7 +20,7 @@ const initialState = {
   teamTab: 'overview',
   chatInput: '',
   chatByGroup: {
-    264991: [
+    100001: [
       { id: 1, author: 'สมหญิง', text: 'อัพเดต wireframe หน้าแรกแล้วนะ', mine: false, time: '10:30' },
       { id: 2, author: 'สมชาย วิลิ', text: 'โอเค เดี๋ยวรีวิว วันนี้', mine: true, time: '10:32' },
       { id: 3, author: 'สมชาย วิลิ', text: 'อย่าลืม test case เสร็จ meeting ถัดไป', mine: true, time: '10:47' },
@@ -34,6 +34,7 @@ const initialState = {
   submissions: [],
   submitButtonLabel: 'ส่งงาน',
   calYear: 2026, calMonth: 2,
+  skillOptions: [...skillOptionsList],
   settingsProfile: { fullName: 'สมชาย วิลิ', nickname: 'อาย', email: 'somchai@example.com', password: '6012345678', skills: ['Frontend', 'UI/UX Design'], skillOther: '' },
   notifSettings: { newTask: true, chatMsg: true, deadline: true, deadlineReminder: false },
   saveSettingsLabel: 'บันทึกการตั้งค่า',
@@ -46,21 +47,31 @@ const initialState = {
   saveAdminSettingsLabel: 'บันทึกการตั้งค่า',
   saveEvaluationLabel: 'บันทึกการประเมิน',
   leaderboardPeriod: 'all',
-  assignmentItems: initialAssignmentItems,
-  kanbanTasks: initialKanbanTasks,
+  tasks: initialTasks,
   taskModalOpen: false,
-  taskModalColumn: 'todo',
+  taskModalColumn: 'pending',
   taskModalGroupId: null,
   taskForm: { title: '', description: '', assigneeIdx: 0, dueDate: '' },
-  teamBoardDataByGroup: {},
   calendarEvents: initialCalendarEvents,
   adminUsersList: initialAdminUsersList,
   currentUser: { name: '', firstName: '', studentId: '' },
-  tasks: initialTasks,
   moderationQueue: initialModerationQueue,
   toasts: [],
   groupsData: initialGroupsData
 };
+
+// "อื่น ๆ" resolves to a real skill name and (if new) grows the shared skill list,
+// mirroring an upsert into the `skills` lookup table instead of storing free text.
+function resolveSkills(skills, skillOther, skillOptions) {
+  if (!skills.includes('อื่น ๆ')) return { skills, skillOptions };
+  const custom = (skillOther || '').trim();
+  if (!custom) return { skills: skills.filter((x) => x !== 'อื่น ๆ'), skillOptions };
+  const existing = skillOptions.find((s) => s !== 'อื่น ๆ' && s.toLowerCase() === custom.toLowerCase());
+  const finalName = existing || custom;
+  const newSkillOptions = existing ? skillOptions : [...skillOptions.slice(0, -1), finalName, 'อื่น ๆ'];
+  const newSkills = skills.map((s) => (s === 'อื่น ๆ' ? finalName : s));
+  return { skills: newSkills, skillOptions: newSkillOptions };
+}
 
 export default function useAppState() {
   const [state, setState] = useState(initialState);
@@ -113,11 +124,12 @@ export default function useAppState() {
   const handleSignup = () => {
     setState((s) => {
       const su = s.su;
-      if (!su.firstName || !su.lastName || !su.email) return { ...s, signupError: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
+      if (!su.firstName || !su.lastName || !su.nickname || !su.email) return { ...s, signupError: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
       if (!su.password || su.password !== su.confirmPassword) return { ...s, signupError: 'รหัสผ่านไม่ตรงกัน' };
+      const { skills, skillOptions } = resolveSkills(su.skills, su.skillOther, s.skillOptions);
       const name = [su.firstName, su.lastName].filter(Boolean).join(' ');
       notify('success', 'สมัครสมาชิกสำเร็จ');
-      return { ...s, screen: 'dashboard', signupError: '', currentUser: { name, firstName: su.nickname || su.firstName } };
+      return { ...s, screen: 'dashboard', signupError: '', skillOptions, su: { ...su, skills, skillOther: '' }, currentUser: { name, firstName: su.nickname || su.firstName, studentId: su.studentId } };
     });
   };
 
@@ -128,17 +140,17 @@ export default function useAppState() {
       const cg = s.cg;
       if (!cg.code || !cg.name || !cg.teacher) return { ...s, cgError: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
       const letter = String.fromCharCode(65 + s.groupsData.length);
-      const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const joinCode = Math.random().toString(36).slice(2, 8).toUpperCase();
       const me = s.currentUser;
       const myName = me.name || 'สมชาย วิลิ';
       const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
       const newGroup = {
-        id: letter, letter, code: cg.code, name: cg.name, teacher: 'อ.' + cg.teacher, subtitle: cg.name,
-        memberCount: 1, maxMembers: Number(cg.maxMembers) || 6, taskCount: 0, tint: '#EFF6FF', accent: '#2563EB',
-        members: [{ name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', role: 'หัวหน้ากลุ่ม', isLeader: true, skills: [] }]
+        id: letter, letter, code: joinCode, subjectCode: cg.code, name: cg.name, teacher: 'อ.' + cg.teacher, subtitle: cg.name,
+        memberCount: 1, taskCount: 0, tint: '#EFF6FF', accent: '#2563EB',
+        members: [{ name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', isLeader: true, skills: [] }]
       };
       notify('success', 'สร้างกลุ่มสำเร็จ');
-      return { ...s, groupsData: [...s.groupsData, newGroup], newGroupCode: code, cgError: '', cg: { code: '', name: '', teacher: '', maxMembers: '6' }, screen: 'groupCreated' };
+      return { ...s, groupsData: [...s.groupsData, newGroup], newGroupCode: joinCode, cgError: '', cg: { code: '', name: '', teacher: '' }, screen: 'groupCreated' };
     });
   };
 
@@ -152,14 +164,15 @@ export default function useAppState() {
       const code = s.joinDigits.join('');
       if (code.length < 6) return { ...s, joinError: 'กรุณากรอกรหัสให้ครบ 6 หลัก' };
       const groupsData = s.groupsData;
-      const group = groupsData.find((g) => g.code.toUpperCase() === code.toUpperCase()) || groupsData[0];
+      const group = groupsData.find((g) => g.code.toUpperCase() === code.toUpperCase());
+      if (!group) return { ...s, joinError: 'ไม่พบรหัสทีมนี้ กรุณาตรวจสอบอีกครั้ง' };
       const me = s.currentUser;
       const myName = me.name || 'สมชาย วิลิ';
       const alreadyMember = group.members.some((m) => (me.studentId && m.studentId === me.studentId) || m.name === myName);
       let newGroupsData = groupsData;
       if (!alreadyMember) {
         const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
-        const newMember = { name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', role: 'สมาชิก', skills: [] };
+        const newMember = { name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', skills: [] };
         newGroupsData = groupsData.map((g) => g.id === group.id ? { ...g, members: [...g.members, newMember], memberCount: g.members.length + 1 } : g);
       }
       notify('success', 'เข้าร่วมกลุ่มสำเร็จ');
@@ -181,14 +194,6 @@ export default function useAppState() {
   const goJoinGroup = () => setState((s) => ({ ...s, screen: 'joinGroup', joinError: '', joinDigits: ['', '', '', '', '', ''] }));
   const openProjectTasks = (groupId) => () => setState((s) => ({ ...s, selectedGroupId: groupId, teamTab: 'tasks', screen: 'timeline' }));
   const setTeamTab = (tab) => () => setState((s) => ({ ...s, teamTab: tab, screen: tab === 'chat' ? 'chat' : (tab === 'tasks' ? 'timeline' : (tab === 'progress' ? 'progress' : 'teamDetail')) }));
-
-  const defaultBoardColumns = () => ([
-    { key: 'todo', label: 'To Do', color: '#6B7280', tasks: [] },
-    { key: 'inprogress', label: 'In Progress', color: '#F59E0B', tasks: [] },
-    { key: 'done', label: 'Done', color: '#16A34A', tasks: [] }
-  ]);
-
-  const getTeamBoardColumns = (groupId, s) => s.teamBoardDataByGroup[groupId] || teamBoardDataSeed[groupId] || defaultBoardColumns();
 
   const getEvalEntry = (groupCode, studentId, s) => {
     const key = groupCode + '|' + studentId;
@@ -240,7 +245,7 @@ export default function useAppState() {
         '<style>body{font-family:"Segoe UI",Tahoma,sans-serif;padding:32px;color:#111827;}h1{font-size:20px;margin-bottom:4px;}p{font-size:13px;color:#555;margin-bottom:20px;}table{border-collapse:collapse;width:100%;font-size:12.5px;}th{padding:8px;border:1px solid #ddd;background:#f3f4f6;text-align:left;}</style>' +
         '</head><body>' +
         '<h1>ผลการประเมินสมาชิกในทีม ' + esc(group.letter) + ' — ' + esc(group.name) + '</h1>' +
-        '<p>รหัสวิชา ' + esc(group.code) + ' · อาจารย์ผู้สอน ' + esc(group.teacher) + ' · คะแนนเต็มข้อละ 5 · ไม่ระบุตัวตนผู้ประเมิน</p>' +
+        '<p>รหัสวิชา ' + esc(group.subjectCode) + ' · อาจารย์ผู้สอน ' + esc(group.teacher) + ' · คะแนนเต็มข้อละ 5 · ไม่ระบุตัวตนผู้ประเมิน</p>' +
         '<table><thead><tr><th>ชื่อสมาชิก</th><th>รหัสนิสิต</th>' + criteriaHeaders + '<th>คะแนนเฉลี่ย</th><th>ความคิดเห็นเกี่ยวกับการทำงาน</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
         scriptOpen + 'window.onload = function(){ window.print(); };' + scriptClose +
         '</body></html>';
@@ -280,20 +285,20 @@ export default function useAppState() {
     setState((s) => {
       const group = s.groupsData.find((g) => g.id === s.taskModalGroupId) || s.groupsData.find((g) => g.id === s.selectedGroupId) || s.groupsData[0];
       if (!s.taskForm.title.trim()) return s;
-      const assignee = group.members[Number(s.taskForm.assigneeIdx)] || group.members[0];
-      if (s.taskModalColumn === 'timeline') {
-        const newTask = {
-          id: Date.now(), title: s.taskForm.title, description: s.taskForm.description, groupCode: group.code,
-          assignedTo: assignee.name, assignedToInitials: assignee.initials, assignedToTint: assignee.tint, assignedToAccent: assignee.accent,
-          assignedDate: new Date().toISOString().slice(0, 10), dueDate: s.taskForm.dueDate, status: 'inprogress', percent: 0
-        };
-        notify('success', 'มอบหมายงานให้ ' + assignee.name + ' แล้ว');
-        return { ...s, tasks: [...s.tasks, newTask], taskModalOpen: false };
-      }
-      const newTask = { title: s.taskForm.title, description: s.taskForm.description, date: new Date().toISOString().slice(5, 10) };
-      const columns = getTeamBoardColumns(group.id, s).map((col) => col.key === s.taskModalColumn ? { ...col, tasks: [...col.tasks, newTask] } : col);
-      notify('success', 'เพิ่มงานลงบอร์ดแล้ว');
-      return { ...s, teamBoardDataByGroup: { ...s.teamBoardDataByGroup, [group.id]: columns }, taskModalOpen: false };
+      const isTimeline = s.taskModalColumn === 'timeline';
+      const assignee = isTimeline ? (group.members[Number(s.taskForm.assigneeIdx)] || group.members[0]) : null;
+      const newTask = {
+        id: Date.now(),
+        groupId: group.id,
+        title: s.taskForm.title,
+        description: s.taskForm.description,
+        assignedTo: assignee ? assignee.name : null,
+        dueDate: isTimeline ? s.taskForm.dueDate : new Date().toISOString().slice(0, 10),
+        status: isTimeline ? 'pending' : s.taskModalColumn,
+        attachments: []
+      };
+      notify('success', isTimeline ? ('มอบหมายงานให้ ' + assignee.name + ' แล้ว') : 'เพิ่มงานลงบอร์ดแล้ว');
+      return { ...s, tasks: [...s.tasks, newTask], taskModalOpen: false };
     });
   };
 
@@ -308,11 +313,10 @@ export default function useAppState() {
       const group = s.groupsData.find((g) => g.id === s.selectedGroupId) || s.groupsData[0];
       const title = window.prompt('ชื่อ Assignment ใหม่:');
       if (!title) return s;
-      const dateLabel = window.prompt('วันที่กำหนดส่ง (เช่น 25 มีนาคม 2569):', '') || '';
-      const dueTime = window.prompt('เวลาส่ง (เช่น 23:59):', '23:59') || '23:59';
-      const newItem = { id: Date.now(), title, groupLabel: 'ทีม ' + group.letter + ' · ' + group.name, dateLabel, dueTime, timeLeft: '-' };
+      const dueDate = window.prompt('วันที่กำหนดส่ง (YYYY-MM-DD):', '') || '';
+      const newTask = { id: Date.now(), groupId: group.id, title, description: '', assignedTo: null, dueDate, status: 'pending', attachments: [] };
       notify('success', 'เพิ่ม Assignment แล้ว');
-      return { ...s, assignmentItems: [...s.assignmentItems, newItem] };
+      return { ...s, tasks: [...s.tasks, newTask] };
     });
   };
 
@@ -353,7 +357,10 @@ export default function useAppState() {
   });
   const toggleNotif = (key) => () => setState((s) => ({ ...s, notifSettings: { ...s.notifSettings, [key]: !s.notifSettings[key] } }));
   const saveSettings = () => {
-    setState((s) => ({ ...s, saveSettingsLabel: 'บันทึกแล้ว ✓' }));
+    setState((s) => {
+      const { skills, skillOptions } = resolveSkills(s.settingsProfile.skills, s.settingsProfile.skillOther, s.skillOptions);
+      return { ...s, skillOptions, settingsProfile: { ...s.settingsProfile, skills, skillOther: '' }, saveSettingsLabel: 'บันทึกแล้ว ✓' };
+    });
     setTimeout(() => setState((s) => ({ ...s, saveSettingsLabel: 'บันทึกการตั้งค่า' })), 1600);
     notify('success', 'บันทึกการตั้งค่าแล้ว');
   };
@@ -396,7 +403,7 @@ export default function useAppState() {
     onSu, onSuSkillOther, toggleGender, toggleSkill, handleSignup,
     onCg, handleCreateGroup, onJoinDigit, handleJoinGroup, copyCode,
     openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, setTeamTab,
-    getTeamBoardColumns, getEvalEntry, setEvalRating, setEvalNote, setLeaderboardPeriod,
+    getEvalEntry, setEvalRating, setEvalNote, setLeaderboardPeriod,
     saveEvaluation, exportEvaluation,
     onChatInputChange, onChatKeyDown, sendChat,
     openTaskModal, closeTaskModal, onTaskFormField, submitTaskModal,

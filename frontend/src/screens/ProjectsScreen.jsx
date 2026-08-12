@@ -12,7 +12,7 @@ export default function ProjectsScreen({ v }) {
               <div style={{ width: 30, height: 30, borderRadius: 9, background: p.tint, color: p.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>{p.letter}</div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827' }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: '#6B7280' }}>รหัสวิชา {p.code}</div>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>รหัสวิชา {p.subjectCode}</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>

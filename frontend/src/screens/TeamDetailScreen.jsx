@@ -9,10 +9,10 @@ export default function TeamDetailScreen({ v }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 16, boxShadow: '0 6px 18px rgba(0,0,0,0.05)' }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{g.code} &nbsp;{g.name}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{g.subjectCode} &nbsp;{g.name}</div>
           <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>{g.teacher}</div>
         </div>
-        <div style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 20 }}>👥 {g.memberCount}/{g.maxMembers}</div>
+        <div style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 20 }}>👥 {g.memberCount} สมาชิก</div>
       </div>
 
       <div style={{ display: 'flex', gap: 6, background: '#fff', borderRadius: 11, padding: 5, marginBottom: 18, width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
@@ -37,10 +37,11 @@ export default function TeamDetailScreen({ v }) {
                   <span key={sk.label} style={{ fontSize: 10, background: sk.bg, color: sk.color, padding: '3px 8px', borderRadius: 6, fontWeight: 600 }}>{sk.label}</span>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 10.5, background: '#F3F4F6', color: '#6B7280', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>{m.role}</span>
-                {m.isLeader && <span style={{ fontSize: 10.5, background: '#FEF3C7', color: '#B45309', padding: '4px 10px', borderRadius: 6, fontWeight: 700 }}>★ หัวหน้ากลุ่ม</span>}
-              </div>
+              {m.isLeader && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10.5, background: '#FEF3C7', color: '#B45309', padding: '4px 10px', borderRadius: 6, fontWeight: 700 }}>★ หัวหน้ากลุ่ม</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -56,12 +57,12 @@ export default function TeamDetailScreen({ v }) {
                 <span style={{ fontSize: 11, color: '#9CA3AF' }}>{col.count}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {col.tasks.map((kt, i) => (
-                  <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '12px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
+                {col.tasks.map((kt) => (
+                  <div key={kt.id} style={{ background: '#fff', borderRadius: 10, padding: '12px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827', marginBottom: 6 }}>{kt.title}</div>
                     {kt.description && <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8, lineHeight: 1.5 }}>{kt.description}</div>}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                      <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>{kt.date}</span>
+                      <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>{kt.dueDate}</span>
                     </div>
                   </div>
                 ))}

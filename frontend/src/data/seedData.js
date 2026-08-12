@@ -10,44 +10,51 @@ export const evalCriteriaList = [
   'ความรับผิดชอบ', 'คุณภาพงาน', 'การสื่อสาร', 'การตรงต่อเวลา', 'การทำงานร่วมกับทีม'
 ];
 
+// board columns mirror the task_status enum subset used for kanban-style grouping
+export const boardColumnDefs = [
+  { key: 'pending', label: 'To Do', color: '#6B7280' },
+  { key: 'in_progress', label: 'In Progress', color: '#F59E0B' },
+  { key: 'completed', label: 'Done', color: '#16A34A' }
+];
+
 export const initialGroupsData = [
   {
-    id: 'A', letter: 'A', code: '264991', name: 'Software Engineering', teacher: 'อ.สมศักดิ์ วิชาการ',
-    subtitle: 'ทีมพัฒนาระบบจัดการ', memberCount: 5, maxMembers: 6, taskCount: 5, tint: '#EFF6FF', accent: '#2563EB',
+    id: 'A', letter: 'A', code: '100001', subjectCode: '264991', name: 'Software Engineering', teacher: 'อ.สมศักดิ์ วิชาการ',
+    subtitle: 'ทีมพัฒนาระบบจัดการ', memberCount: 5, taskCount: 5, tint: '#EFF6FF', accent: '#2563EB',
     members: [
-      { name: 'สมชาย วิลิ', studentId: '6412001', initials: 'สว', tint: '#EFF6FF', accent: '#2563EB', role: 'Frontend Dev', isLeader: true, skills: [{ label: 'Frontend', bg: '#EFF6FF', color: '#2563EB' }, { label: 'UI/UX Design', bg: '#F3E8FD', color: '#8B5CF6' }] },
-      { name: 'สมหญิง ยินเลิศ', studentId: '6412002', initials: 'สย', tint: '#E8F8EE', accent: '#16A34A', role: 'Backend Dev', skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }, { label: 'Database', bg: '#FEF3C7', color: '#D97706' }] },
-      { name: 'ประเสริฐ นาคะ', studentId: '6412003', initials: 'ปน', tint: '#FEE2E2', accent: '#DC2626', role: 'Tester', skills: [{ label: 'Testing', bg: '#FEE2E2', color: '#DC2626' }, { label: 'Documentation', bg: '#F3F4F6', color: '#6B7280' }] },
-      { name: 'วรเดช สถาพรกุล', studentId: '6412004', initials: 'วส', tint: '#FEF3C7', accent: '#D97706', role: 'Presenter', skills: [{ label: 'AI/ML', bg: '#F3E8FD', color: '#8B5CF6' }, { label: 'Presentation', bg: '#FEF3C7', color: '#D97706' }] },
-      { name: 'กิตติ พัฒนา', studentId: '6412005', initials: 'กพ', tint: '#E0F2FE', accent: '#0EA5E9', role: 'DevOps', skills: [{ label: 'DevOps', bg: '#E0F2FE', color: '#0EA5E9' }, { label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] }
+      { name: 'สมชาย วิลิ', studentId: '6412001', initials: 'สว', tint: '#EFF6FF', accent: '#2563EB', isLeader: true, skills: [{ label: 'Frontend', bg: '#EFF6FF', color: '#2563EB' }, { label: 'UI/UX Design', bg: '#F3E8FD', color: '#8B5CF6' }] },
+      { name: 'สมหญิง ยินเลิศ', studentId: '6412002', initials: 'สย', tint: '#E8F8EE', accent: '#16A34A', skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }, { label: 'Database', bg: '#FEF3C7', color: '#D97706' }] },
+      { name: 'ประเสริฐ นาคะ', studentId: '6412003', initials: 'ปน', tint: '#FEE2E2', accent: '#DC2626', skills: [{ label: 'Testing', bg: '#FEE2E2', color: '#DC2626' }, { label: 'Documentation', bg: '#F3F4F6', color: '#6B7280' }] },
+      { name: 'วรเดช สถาพรกุล', studentId: '6412004', initials: 'วส', tint: '#FEF3C7', accent: '#D97706', skills: [{ label: 'AI/ML', bg: '#F3E8FD', color: '#8B5CF6' }, { label: 'Presentation', bg: '#FEF3C7', color: '#D97706' }] },
+      { name: 'กิตติ พัฒนา', studentId: '6412005', initials: 'กพ', tint: '#E0F2FE', accent: '#0EA5E9', skills: [{ label: 'DevOps', bg: '#E0F2FE', color: '#0EA5E9' }, { label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] }
     ]
   },
   {
-    id: 'B', letter: 'B', code: '264530', name: 'Web Development', teacher: 'อ.นภา ใจดี',
-    subtitle: 'ทีมพัฒนา UX/UI และเว็บไซต์', memberCount: 3, maxMembers: 6, taskCount: 5, tint: '#F3E8FD', accent: '#8B5CF6',
+    id: 'B', letter: 'B', code: '100002', subjectCode: '264530', name: 'Web Development', teacher: 'อ.นภา ใจดี',
+    subtitle: 'ทีมพัฒนา UX/UI และเว็บไซต์', memberCount: 3, taskCount: 5, tint: '#F3E8FD', accent: '#8B5CF6',
     members: [
-      { name: 'กมล ศรีทอง', studentId: '6412010', initials: 'กศ', tint: '#F3E8FD', accent: '#8B5CF6', role: 'UI Designer', isLeader: true, skills: [{ label: 'UI/UX', bg: '#F3E8FD', color: '#8B5CF6' }] },
-      { name: 'แนน คิดดี', studentId: '6412011', initials: 'นค', tint: '#E0F2FE', accent: '#0EA5E9', role: 'Frontend Dev', skills: [{ label: 'Frontend', bg: '#EFF6FF', color: '#2563EB' }] },
-      { name: 'บอส วิริยะ', studentId: '6412012', initials: 'บว', tint: '#E8F8EE', accent: '#16A34A', role: 'Backend Dev', skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] }
+      { name: 'กมล ศรีทอง', studentId: '6412010', initials: 'กศ', tint: '#F3E8FD', accent: '#8B5CF6', isLeader: true, skills: [{ label: 'UI/UX', bg: '#F3E8FD', color: '#8B5CF6' }] },
+      { name: 'แนน คิดดี', studentId: '6412011', initials: 'นค', tint: '#E0F2FE', accent: '#0EA5E9', skills: [{ label: 'Frontend', bg: '#EFF6FF', color: '#2563EB' }] },
+      { name: 'บอส วิริยะ', studentId: '6412012', initials: 'บว', tint: '#E8F8EE', accent: '#16A34A', skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] }
     ]
   },
   {
-    id: 'C', letter: 'C', code: '264610', name: 'AI Chatbot Development', teacher: 'อ.ชาตรี ไชยวงค์',
-    subtitle: 'ทีมพัฒนา AI Chatbot', memberCount: 4, maxMembers: 6, taskCount: 5, tint: '#FEF3C7', accent: '#D97706',
+    id: 'C', letter: 'C', code: '100003', subjectCode: '264610', name: 'AI Chatbot Development', teacher: 'อ.ชาตรี ไชยวงค์',
+    subtitle: 'ทีมพัฒนา AI Chatbot', memberCount: 4, taskCount: 5, tint: '#FEF3C7', accent: '#D97706',
     members: [
-      { name: 'พิมพ์มาดา สงศิริ', studentId: '6412020', initials: 'พส', tint: '#FEF3C7', accent: '#D97706', role: 'ML Engineer', isLeader: true, skills: [{ label: 'AI/ML', bg: '#F3E8FD', color: '#8B5CF6' }] },
-      { name: 'ธีร์ พงศ์', studentId: '6412021', initials: 'ธพ', tint: '#FEE2E2', accent: '#DC2626', role: 'Data Engineer', skills: [{ label: 'Database', bg: '#FEF3C7', color: '#D97706' }] },
-      { name: 'ฝัน สิงห์', studentId: '6412022', initials: 'ฝส', tint: '#E0F2FE', accent: '#0EA5E9', role: 'Backend Dev', skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] },
-      { name: 'ปุ้ย อ่ำ', studentId: '6412023', initials: 'ปอ', tint: '#EFF6FF', accent: '#2563EB', role: 'Frontend Dev', skills: [{ label: 'Frontend', bg: '#EFF6FF', color: '#2563EB' }] }
+      { name: 'พิมพ์มาดา สงศิริ', studentId: '6412020', initials: 'พส', tint: '#FEF3C7', accent: '#D97706', isLeader: true, skills: [{ label: 'AI/ML', bg: '#F3E8FD', color: '#8B5CF6' }] },
+      { name: 'ธีร์ พงศ์', studentId: '6412021', initials: 'ธพ', tint: '#FEE2E2', accent: '#DC2626', skills: [{ label: 'Database', bg: '#FEF3C7', color: '#D97706' }] },
+      { name: 'ฝัน สิงห์', studentId: '6412022', initials: 'ฝส', tint: '#E0F2FE', accent: '#0EA5E9', skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] },
+      { name: 'ปุ้ย อ่ำ', studentId: '6412023', initials: 'ปอ', tint: '#EFF6FF', accent: '#2563EB', skills: [{ label: 'Frontend', bg: '#EFF6FF', color: '#2563EB' }] }
     ]
   },
   {
-    id: 'D', letter: 'D', code: '264720', name: 'Data Systems', teacher: 'อ.รุ่งนภา ทองสุข',
-    subtitle: 'ทีมพัฒนาระบบข้อมูล', memberCount: 3, maxMembers: 6, taskCount: 5, tint: '#E8F8EE', accent: '#16A34A',
+    id: 'D', letter: 'D', code: '100004', subjectCode: '264720', name: 'Data Systems', teacher: 'อ.รุ่งนภา ทองสุข',
+    subtitle: 'ทีมพัฒนาระบบข้อมูล', memberCount: 3, taskCount: 5, tint: '#E8F8EE', accent: '#16A34A',
     members: [
-      { name: 'อรุณ ปิ่นเดช', studentId: '6412030', initials: 'อป', tint: '#E8F8EE', accent: '#16A34A', role: 'Backend Dev', isLeader: true, skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] },
-      { name: 'ธาดา ภาคิน', studentId: '6412031', initials: 'ธภ', tint: '#EFF6FF', accent: '#2563EB', role: 'Designer', skills: [{ label: 'UI/UX', bg: '#F3E8FD', color: '#8B5CF6' }] },
-      { name: 'ชวิน มาลี', studentId: '6412032', initials: 'ชม', tint: '#FEE2E2', accent: '#DC2626', role: 'Tester', skills: [{ label: 'Testing', bg: '#FEE2E2', color: '#DC2626' }] }
+      { name: 'อรุณ ปิ่นเดช', studentId: '6412030', initials: 'อป', tint: '#E8F8EE', accent: '#16A34A', isLeader: true, skills: [{ label: 'Backend', bg: '#E8F8EE', color: '#16A34A' }] },
+      { name: 'ธาดา ภาคิน', studentId: '6412031', initials: 'ธภ', tint: '#EFF6FF', accent: '#2563EB', skills: [{ label: 'UI/UX', bg: '#F3E8FD', color: '#8B5CF6' }] },
+      { name: 'ชวิน มาลี', studentId: '6412032', initials: 'ชม', tint: '#FEE2E2', accent: '#DC2626', skills: [{ label: 'Testing', bg: '#FEE2E2', color: '#DC2626' }] }
     ]
   }
 ];
@@ -78,78 +85,48 @@ export const securityAlertsData = [
   { severityLabel: 'สูง', severityBg: '#FEE2E2', severityColor: '#DC2626', title: 'ไฟล์แนบต้องสงสัยว่ามีมัลแวร์', detail: 'ระบบสแกนไฟล์แนบ final-submission.pdf พบรูปแบบที่ตรงกับสัญญาณอันตราย', account: 'nan.k@student.ac.th', ip: '182.53.6.201', time: '1 ชั่วโมงที่แล้ว' }
 ];
 
-export const assignmentDetails = {
-  1: { title: 'ออกแบบ UI หน้า Dashboard', groupLabel: 'ทีม A · Software Engineering', assignedDate: '8 มี.ค. 2569', dueDate: '11 มี.ค. 2569 23:59', timeLeft: '12 ชั่วโมง', description: 'ออกแบบ UI หน้า Dashboard โดยใช้หลักการของ Design System ที่ทีมกำหนดไว้ ครอบคลุม responsive layout, สถานะข้อมูลว่าง และการแสดงผลบนอุปกรณ์เคลื่อนที่', attachments: [{ name: 'design-brief.pdf' }, { name: 'design-references.fig' }] },
-  2: { title: 'เขียน Unit Test สำหรับ Backend API', groupLabel: 'ทีม A · Software Engineering', assignedDate: '9 มี.ค. 2569', dueDate: '12 มี.ค. 2569 23:59', timeLeft: '1 วัน', description: 'เขียน Unit Test ครอบคลุม endpoint หลักของระบบ ด้วย coverage ไม่น้อยกว่า 80%', attachments: [{ name: 'api-spec.pdf' }] },
-  3: { title: 'ดีไซน์การ Software Requirements', groupLabel: 'ทีม B · Web Development', assignedDate: '10 มี.ค. 2569', dueDate: '15 มี.ค. 2569 23:59', timeLeft: '3 วัน', description: 'จัดทำเอกสาร Software Requirements Specification ตามแนวทาง IEEE 830', attachments: [{ name: 'srs-template.docx' }] },
-  4: { title: 'ปรับแต่ง Progress โปรเจกต์ครั้งที่ 2', groupLabel: 'ทีม A · Web Development', assignedDate: '11 มี.ค. 2569', dueDate: '20 มี.ค. 2569 23:59', timeLeft: '9 วัน', description: 'สรุปความคืบหน้าของโปรเจกต์ครั้งที่ 2 พร้อมอัปเดต timeline และปัญหาที่พบ', attachments: [{ name: 'progress-report-1.pdf' }] }
-};
+// Unified task list — one shape for every screen (Timeline, Board, Assignment, Progress, Dashboard),
+// matching the DB `tasks` table: groupId, title, description, assignedTo (null = whole-group assignment),
+// dueDate, status (task_status enum), attachments (reference files from the assigner).
+export const initialTasks = [
+  { id: 1, groupId: 'A', title: 'กำหนดขอบเขตโปรเจกต์', description: '', assignedTo: 'สมชาย วิลิ', dueDate: '2026-01-20', status: 'completed', attachments: [] },
+  { id: 2, groupId: 'A', title: 'ออกแบบ ER Diagram', description: '', assignedTo: 'สมหญิง ยินเลิศ', dueDate: '2026-01-25', status: 'completed', attachments: [] },
+  { id: 3, groupId: 'A', title: 'สร้าง Wireframe หน้า Login', description: '', assignedTo: 'สมชาย วิลิ', dueDate: '2026-02-01', status: 'in_progress', attachments: [] },
+  { id: 4, groupId: 'A', title: 'เขียน Test Cases', description: '', assignedTo: 'ประเสริฐ นาคะ', dueDate: '2026-01-28', status: 'in_progress', attachments: [] },
+  { id: 5, groupId: 'A', title: 'อัพเกรดระบบ SRS', description: '', assignedTo: 'กิตติ พัฒนา', dueDate: '2026-01-20', status: 'overdue', attachments: [] },
+  { id: 6, groupId: 'A', title: 'วิจัย Technology Stack', description: '', assignedTo: 'วรเดช สถาพรกุล', dueDate: '2026-02-10', status: 'pending', attachments: [] },
+  { id: 7, groupId: 'A', title: 'ออกแบบ Database Schema', description: '', assignedTo: 'กิตติ พัฒนา', dueDate: '2026-02-05', status: 'pending', attachments: [] },
+  {
+    id: 8, groupId: 'A', title: 'ออกแบบ UI หน้า Dashboard',
+    description: 'ออกแบบ UI หน้า Dashboard โดยใช้หลักการของ Design System ที่ทีมกำหนดไว้ ครอบคลุม responsive layout, สถานะข้อมูลว่าง และการแสดงผลบนอุปกรณ์เคลื่อนที่',
+    assignedTo: null, dueDate: '2026-03-11', status: 'pending', attachments: [{ name: 'design-brief.pdf' }, { name: 'design-references.fig' }]
+  },
+  {
+    id: 9, groupId: 'A', title: 'เขียน Unit Test สำหรับ Backend API',
+    description: 'เขียน Unit Test ครอบคลุม endpoint หลักของระบบ ด้วย coverage ไม่น้อยกว่า 80%',
+    assignedTo: null, dueDate: '2026-03-12', status: 'pending', attachments: [{ name: 'api-spec.pdf' }]
+  },
 
-export const initialAssignmentItems = [
-  { id: 1, title: 'ออกแบบ UI หน้า Dashboard', groupLabel: 'ทีม A · Software Engineering', dateLabel: '11 มีนาคม 2569', dueTime: '23:59', timeLeft: '12 ชม.' },
-  { id: 2, title: 'เขียน Unit Test สำหรับ Backend API', groupLabel: 'ทีม A · Software Engineering', dateLabel: '12 มีนาคม 2569', dueTime: '23:59', timeLeft: '1 วัน' },
-  { id: 3, title: 'ดีไซน์การ Software Requirements', groupLabel: 'ทีม B · Web Development', dateLabel: '15 มีนาคม 2569', dueTime: '23:59', timeLeft: '3 วัน' },
-  { id: 4, title: 'ปรับแต่ง Progress โปรเจกต์ครั้งที่ 2', groupLabel: 'ทีม A · Web Development', dateLabel: '20 มีนาคม 2569', dueTime: '23:59', timeLeft: '9 วัน' }
+  { id: 10, groupId: 'B', title: 'ออกแบบหน้า Landing Page', description: '', assignedTo: 'กมล ศรีทอง', dueDate: '2026-02-12', status: 'pending', attachments: [] },
+  { id: 11, groupId: 'B', title: 'ทำ API เชื่อมต่อฐานข้อมูล', description: '', assignedTo: 'บอส วิริยะ', dueDate: '2026-02-08', status: 'in_progress', attachments: [] },
+  {
+    id: 12, groupId: 'B', title: 'ดีไซน์การ Software Requirements',
+    description: 'จัดทำเอกสาร Software Requirements Specification ตามแนวทาง IEEE 830',
+    assignedTo: null, dueDate: '2026-03-15', status: 'pending', attachments: [{ name: 'srs-template.docx' }]
+  },
+  {
+    id: 13, groupId: 'B', title: 'ปรับแต่ง Progress โปรเจกต์ครั้งที่ 2',
+    description: 'สรุปความคืบหน้าของโปรเจกต์ครั้งที่ 2 พร้อมอัปเดต timeline และปัญหาที่พบ',
+    assignedTo: null, dueDate: '2026-03-20', status: 'pending', attachments: [{ name: 'progress-report-1.pdf' }]
+  },
+
+  { id: 14, groupId: 'C', title: 'สำรวจ LLM ที่ใช้ได้', description: '', assignedTo: 'ฝัน สิงห์', dueDate: '2026-01-28', status: 'completed', attachments: [] },
+  { id: 15, groupId: 'C', title: 'เขียน Prompt Chatbot', description: '', assignedTo: 'ธีร์ พงศ์', dueDate: '2026-02-09', status: 'in_progress', attachments: [] },
+  { id: 16, groupId: 'C', title: 'เก็บข้อมูลเทรนโมเดล', description: '', assignedTo: 'พิมพ์มาดา สงศิริ', dueDate: '2026-02-14', status: 'pending', attachments: [] },
+
+  { id: 17, groupId: 'D', title: 'ตั้งค่าฐานข้อมูล', description: '', assignedTo: 'ธาดา ภาคิน', dueDate: '2026-01-25', status: 'completed', attachments: [] },
+  { id: 18, groupId: 'D', title: 'ออกแบบ Data Pipeline', description: '', assignedTo: 'อรุณ ปิ่นเดช', dueDate: '2026-02-11', status: 'in_progress', attachments: [] }
 ];
-
-export const initialKanbanTasks = {
-  todo: [
-    { title: 'วิจัย Technology Stack', initials: 'วส', tint: '#EFF6FF', accent: '#2563EB', date: '02-10' },
-    { title: 'ออกแบบ Database Schema', initials: 'กพ', tint: '#E8F8EE', accent: '#16A34A', date: '02-05' },
-    { title: 'เขียน User Stories', initials: 'ปน', tint: '#FEE2E2', accent: '#DC2626', date: '02-08' }
-  ],
-  inprogress: [
-    { title: 'สร้าง Wireframe', initials: 'สว', tint: '#EFF6FF', accent: '#2563EB', date: '09-30' },
-    { title: 'ตรวจสอบ ER Diagram', initials: 'สย', tint: '#E8F8EE', accent: '#16A34A', date: '01-24' }
-  ],
-  done: [
-    { title: 'กำหนดขอบเขตโปรเจกต์', initials: 'สว', tint: '#EFF6FF', accent: '#2563EB', date: '01-20' }
-  ]
-};
-
-export const teamBoardDataSeed = {
-  A: [
-    { key: 'todo', label: 'To Do', color: '#6B7280', tasks: [
-      { title: 'วิจัย Technology Stack', initials: 'วส', tint: '#EFF6FF', accent: '#2563EB', date: '02-10' },
-      { title: 'ออกแบบ Database Schema', initials: 'กพ', tint: '#E8F8EE', accent: '#16A34A', date: '02-05' }
-    ] },
-    { key: 'inprogress', label: 'In Progress', color: '#F59E0B', tasks: [
-      { title: 'สร้าง Wireframe', initials: 'สว', tint: '#EFF6FF', accent: '#2563EB', date: '09-30' }
-    ] },
-    { key: 'done', label: 'Done', color: '#16A34A', tasks: [
-      { title: 'กำหนดขอบเขตโปรเจกต์', initials: 'สว', tint: '#EFF6FF', accent: '#2563EB', date: '01-20' }
-    ] }
-  ],
-  B: [
-    { key: 'todo', label: 'To Do', color: '#6B7280', tasks: [
-      { title: 'ออกแบบหน้า Landing Page', initials: 'กศ', tint: '#F3E8FD', accent: '#8B5CF6', date: '02-12' }
-    ] },
-    { key: 'inprogress', label: 'In Progress', color: '#F59E0B', tasks: [
-      { title: 'ทำ API เชื่อมต่อฐานข้อมูล', initials: 'บว', tint: '#E8F8EE', accent: '#16A34A', date: '02-08' }
-    ] },
-    { key: 'done', label: 'Done', color: '#16A34A', tasks: [] }
-  ],
-  C: [
-    { key: 'todo', label: 'To Do', color: '#6B7280', tasks: [
-      { title: 'เก็บข้อมูลเทรนโมเดล', initials: 'พส', tint: '#FEF3C7', accent: '#B45309', date: '02-14' }
-    ] },
-    { key: 'inprogress', label: 'In Progress', color: '#F59E0B', tasks: [
-      { title: 'เขียน Prompt Chatbot', initials: 'ธพ', tint: '#FEE2E2', accent: '#DC2626', date: '02-09' }
-    ] },
-    { key: 'done', label: 'Done', color: '#16A34A', tasks: [
-      { title: 'สำรวจ LLM ที่ใช้ได้', initials: 'ฝส', tint: '#E0F2FE', accent: '#0EA5E9', date: '01-28' }
-    ] }
-  ],
-  D: [
-    { key: 'todo', label: 'To Do', color: '#6B7280', tasks: [] },
-    { key: 'inprogress', label: 'In Progress', color: '#F59E0B', tasks: [
-      { title: 'ออกแบบ Data Pipeline', initials: 'อป', tint: '#E8F8EE', accent: '#16A34A', date: '02-11' }
-    ] },
-    { key: 'done', label: 'Done', color: '#16A34A', tasks: [
-      { title: 'ตั้งค่าฐานข้อมูล', initials: 'ธภ', tint: '#EFF6FF', accent: '#2563EB', date: '01-25' }
-    ] }
-  ]
-};
 
 export const initialCalendarEvents = [
   { title: 'ประชุมทีม A', date: '9 มี.ค.', time: '10:00–11:00', group: 'ทีม A · 4 คน', color: '#2563EB' },
@@ -161,13 +138,6 @@ export const initialCalendarEvents = [
 export const initialAdminUsersList = [
   { name: 'ผู้ดูแลระบบ', email: 'admin@teammate.com', role: 'full' },
   { name: 'นภา ใจดี', email: 'napa.admin@teammate.com', role: 'viewer' }
-];
-
-export const initialTasks = [
-  { id: 1, title: 'ออกแบบ ER Diagram', groupCode: '264991', assignedDate: '2024-01-15', dueDate: '2024-01-25', status: 'done', percent: 100 },
-  { id: 2, title: 'สร้าง Wireframe หน้า Login', groupCode: '264991', assignedDate: '2024-01-20', dueDate: '2024-02-01', status: 'inprogress', percent: 75 },
-  { id: 3, title: 'เขียน Test Cases', groupCode: '264991', assignedDate: '2024-01-22', dueDate: '2024-01-28', status: 'review', percent: 30 },
-  { id: 4, title: 'อัพเกรดระบบ SRS', groupCode: '264991', assignedDate: '2024-01-10', dueDate: '2024-01-20', status: 'overdue', percent: 0 }
 ];
 
 export const initialModerationQueue = [
@@ -183,12 +153,14 @@ export const recentFiles = [
   { name: 'TestCase_Sprint1.xlsx', meta: '2 วันที่แล้ว · 1 ไฟล์' }
 ];
 
+// mirrors the task_status enum: pending, in_progress, completed, overdue, cancelled
 export const statusMeta = (status) => {
   const map = {
-    done: { label: 'เสร็จแล้ว', bg: '#E8F8EE', color: '#16A34A' },
-    inprogress: { label: 'กำลังดำเนินการ', bg: '#FEF3C7', color: '#D97706' },
-    review: { label: 'รอตรวจ', bg: '#EFF6FF', color: '#2563EB' },
-    overdue: { label: 'เลยกำหนด', bg: '#FEE2E2', color: '#DC2626' }
+    pending: { label: 'รอดำเนินการ', bg: '#F3F4F6', color: '#6B7280' },
+    in_progress: { label: 'กำลังดำเนินการ', bg: '#FEF3C7', color: '#D97706' },
+    completed: { label: 'เสร็จแล้ว', bg: '#E8F8EE', color: '#16A34A' },
+    overdue: { label: 'เลยกำหนด', bg: '#FEE2E2', color: '#DC2626' },
+    cancelled: { label: 'ยกเลิก', bg: '#F3F4F6', color: '#9CA3AF' }
   };
-  return map[status] || map.review;
+  return map[status] || map.pending;
 };

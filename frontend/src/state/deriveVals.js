@@ -1,10 +1,18 @@
-import { skillOptionsList, evalCriteriaList, leaderboardData, assignmentDetails, errorLogsData, securityAlertsData, recentFiles, statusMeta } from '../data/seedData.js';
+import { evalCriteriaList, leaderboardData, errorLogsData, securityAlertsData, recentFiles, statusMeta, boardColumnDefs } from '../data/seedData.js';
 
 const monthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const weekdayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 
 function isLeaderOf(group, currentUser) {
   return group.members.some((m) => m.isLeader && (m.studentId === currentUser.studentId || m.name === currentUser.name));
+}
+
+// groups a flat task list into the 3 kanban columns (pending / in_progress / completed)
+function bucketTasksByStatus(taskList) {
+  return boardColumnDefs.map((c) => {
+    const tasks = taskList.filter((t) => t.status === c.key);
+    return { ...c, tasks, count: tasks.length };
+  });
 }
 
 export default function deriveVals(state, actions) {
@@ -14,8 +22,27 @@ export default function deriveVals(state, actions) {
   const showSidebar = !isLogin && !isSignup;
   const groupsData = s.groupsData;
   const selectedGroup = groupsData.find((g) => g.id === s.selectedGroupId) || groupsData[0];
+
+  // every task across every group, with display metadata — backs Dashboard + Assignment screen
+  const allTasksFlat = s.tasks.map((t) => {
+    const grp = groupsData.find((g) => g.id === t.groupId);
+    const meta = statusMeta(t.status);
+    return {
+      ...t,
+      groupLabel: grp ? ('ทีม ' + grp.letter + ' · ' + grp.name) : '',
+      statusLabel: meta.label, statusBg: meta.bg, statusColor: meta.color,
+      onOpen: actions.openAssignmentDetail(t.id)
+    };
+  });
+
+  const selectedTask = s.tasks.find((t) => t.id === s.selectedAssignmentId);
+  const selectedTaskGroup = selectedTask ? (groupsData.find((g) => g.id === selectedTask.groupId) || selectedGroup) : selectedGroup;
+  const selectedTaskMeta = statusMeta(selectedTask ? selectedTask.status : 'pending');
   const selectedAssignment = {
-    ...assignmentDetails[s.selectedAssignmentId],
+    title: '', description: '', dueDate: '', attachments: [],
+    ...selectedTask,
+    groupLabel: 'ทีม ' + selectedTaskGroup.letter + ' · ' + selectedTaskGroup.name,
+    statusLabel: selectedTaskMeta.label, statusBg: selectedTaskMeta.bg, statusColor: selectedTaskMeta.color,
     submissions: s.submissions.map((sub) => ({ ...sub, onRemove: actions.removeSubmission(sub.id) }))
   };
 
@@ -58,7 +85,7 @@ export default function deriveVals(state, actions) {
     label, onClick: actions.toggleGender(label),
     bg: s.su.gender === label ? '#2563EB' : '#F3F4F6', color: s.su.gender === label ? '#fff' : '#6B7280'
   }));
-  const skillOptions = skillOptionsList.map((label) => ({
+  const skillOptions = s.skillOptions.map((label) => ({
     label, onClick: actions.toggleSkill(label),
     bg: s.su.skills.includes(label) ? '#2563EB' : '#F3F4F6', color: s.su.skills.includes(label) ? '#fff' : '#6B7280'
   }));
@@ -91,11 +118,18 @@ export default function deriveVals(state, actions) {
     return evalCriteriaList.every((c) => !!entry.ratings[c]);
   });
 
-  const timelineTasks = s.tasks.map((t) => {
+  // selected-group task list — backs the Timeline tab and the Progress screen
+  const groupTasksAll = s.tasks.filter((t) => t.groupId === selectedGroup.id);
+  const timelineTasks = groupTasksAll.map((t) => {
     const meta = statusMeta(t.status);
-    return { ...t, statusLabel: meta.label, statusBg: meta.bg, statusColor: meta.color, onOpen: actions.openTask(t.id) };
+    const member = t.assignedTo ? selectedGroup.members.find((m) => m.name === t.assignedTo) : null;
+    return {
+      ...t, statusLabel: meta.label, statusBg: meta.bg, statusColor: meta.color,
+      assignedToInitials: member ? member.initials : null, assignedToTint: member ? member.tint : null, assignedToAccent: member ? member.accent : null,
+      onOpen: actions.openTask(t.id)
+    };
   });
-  const overallProgress = Math.round(s.tasks.reduce((a, t) => a + t.percent, 0) / s.tasks.length);
+  const overallProgress = groupTasksAll.length ? Math.round((groupTasksAll.filter((t) => t.status === 'completed').length / groupTasksAll.length) * 100) : 0;
 
   const rawMessages = s.chatByGroup[selectedGroup.code] || [];
   const chatMessages = rawMessages.map((m) => ({
@@ -104,22 +138,18 @@ export default function deriveVals(state, actions) {
   }));
 
   const assignmentFilterDefs = [
-    { key: 'all', label: 'ทั้งหมด' }, { key: 'todo', label: 'ยังไม่ส่ง' }, { key: 'inprogress', label: 'กำลังดำเนินการ' },
-    { key: 'done', label: 'ส่งแล้ว' }, { key: 'overdue', label: 'เลยกำหนด' }
+    { key: 'all', label: 'ทั้งหมด' }, { key: 'pending', label: 'รอดำเนินการ' }, { key: 'in_progress', label: 'กำลังดำเนินการ' },
+    { key: 'completed', label: 'เสร็จแล้ว' }, { key: 'overdue', label: 'เลยกำหนด' }
   ];
   const assignmentFilters = assignmentFilterDefs.map((f) => ({
     label: f.label, onClick: actions.setAssignmentFilter(f.key),
     bg: s.assignmentFilter === f.key ? '#2563EB' : '#fff', color: s.assignmentFilter === f.key ? '#fff' : '#6B7280'
   }));
+  const filteredTasks = s.assignmentFilter === 'all' ? allTasksFlat : allTasksFlat.filter((t) => t.status === s.assignmentFilter);
+  const assignmentList = [...filteredTasks].sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
 
-  const assignmentGroups = s.assignmentItems.map((t) => ({ dateLabel: t.dateLabel, task: { ...t, onOpen: actions.openAssignmentDetail(t.id) } }));
-
-  const kanbanColumnDefs = [
-    { key: 'todo', label: 'To Do', color: '#6B7280' },
-    { key: 'inprogress', label: 'In Progress', color: '#F59E0B' },
-    { key: 'done', label: 'Done', color: '#16A34A' }
-  ];
-  const kanbanColumns = kanbanColumnDefs.map((c) => ({ ...c, count: s.kanbanTasks[c.key].length, tasks: s.kanbanTasks[c.key] }));
+  const kanbanColumns = bucketTasksByStatus(allTasksFlat);
+  const teamBoardColumns = bucketTasksByStatus(groupTasksAll).map((col) => ({ ...col, onAddTask: actions.openTaskModal(col.key) }));
 
   const listViewBg = s.assignmentView === 'list' ? '#fff' : 'transparent';
   const listViewColor = s.assignmentView === 'list' ? '#2563EB' : '#6B7280';
@@ -207,24 +237,24 @@ export default function deriveVals(state, actions) {
     isGroupCreated: s.screen === 'groupCreated', newGroupCode: s.newGroupCode, copyLabel: s.copyLabel, copyCode: actions.copyCode, goTeams: actions.go('teams'),
     dashStats: {
       teamCount: groupsData.length,
-      pendingTasks: s.tasks.filter((t) => t.status !== 'done').length,
+      pendingTasks: s.tasks.filter((t) => t.status !== 'completed').length,
       points: (leaderboardData.find((p) => p.firstName === (s.currentUser.firstName || '')) || {}).points ?? 980
     },
-    dashUpcomingTasks: timelineTasks.filter((t) => t.status !== 'done').slice(0, 4),
-    dashNoUpcomingTasks: timelineTasks.filter((t) => t.status !== 'done').length === 0,
+    dashUpcomingTasks: allTasksFlat.filter((t) => t.status !== 'completed').slice(0, 4),
+    dashNoUpcomingTasks: allTasksFlat.filter((t) => t.status !== 'completed').length === 0,
     isDashboardEmpty: s.screen === 'dashboard' && !hasTeam,
     isTeams: s.screen === 'teams', groups, isJoinGroup: s.screen === 'joinGroup', goJoinGroup: actions.goJoinGroup,
     isProjects: s.screen === 'projects',
     projectCards: groupsData.map((g) => {
-      const groupTasks = s.tasks.filter((t) => t.groupCode === g.code);
-      const done = groupTasks.filter((t) => t.status === 'done').length;
+      const groupTasks = s.tasks.filter((t) => t.groupId === g.id);
+      const done = groupTasks.filter((t) => t.status === 'completed').length;
       const total = groupTasks.length;
       const pct = total ? Math.round((done / total) * 100) : 0;
       return { ...g, doneCount: done, totalCount: total, pct, onOpenTasks: actions.openProjectTasks(g.id) };
     }),
     isTeamDetail: s.screen === 'teamDetail', selectedGroup, teamTabs,
     teamTabOverview: s.teamTab === 'overview', teamTabTasks: s.teamTab === 'tasks', teamTabProgress: s.teamTab === 'progress', teamTabEvaluation: s.teamTab === 'evaluation', teamTabBoard: s.teamTab === 'board',
-    teamBoardColumns: actions.getTeamBoardColumns(selectedGroup.id, s).map((col) => ({ ...col, count: col.tasks.length, onAddTask: actions.openTaskModal(col.key) })),
+    teamBoardColumns,
     isCurrentUserLeaderOfSelected: isLeaderOf(selectedGroup, s.currentUser),
     taskModalOpen: s.taskModalOpen, closeTaskModal: actions.closeTaskModal, submitTaskModal: actions.submitTaskModal, stopPropagation: actions.stopPropagation,
     taskForm: s.taskForm, onTaskFormTitle: actions.onTaskFormField('title'), onTaskFormDescription: actions.onTaskFormField('description'),
@@ -238,7 +268,7 @@ export default function deriveVals(state, actions) {
     isProgress: s.screen === 'progress', overallProgress, recentFiles,
     isChat: s.screen === 'chat', chatMessages, chatInput: s.chatInput, onChatInputChange: actions.onChatInputChange, onChatKeyDown: actions.onChatKeyDown, sendChat: actions.sendChat,
     isAssignment: s.screen === 'assignment', assignmentIsList: s.assignmentView === 'list', assignmentIsKanban: s.assignmentView === 'kanban',
-    listViewBg, listViewColor, kanbanViewBg, kanbanViewColor, assignmentFilters, assignmentGroups, kanbanColumns, goAssignment: actions.go('assignment'),
+    listViewBg, listViewColor, kanbanViewBg, kanbanViewColor, assignmentFilters, assignmentList, kanbanColumns, goAssignment: actions.go('assignment'),
     addAssignment: actions.addAssignment, addCalendarEvent: actions.addCalendarEvent, isCurrentUserLeaderAny,
     setAssignmentViewList: actions.setAssignmentView('list'), setAssignmentViewKanban: actions.setAssignmentView('kanban'),
     isAssignmentDetail: s.screen === 'assignmentDetail', selectedAssignment, submitNote: s.submitNote, onSubmitNoteChange: actions.onSubmitNoteChange,
@@ -247,7 +277,7 @@ export default function deriveVals(state, actions) {
     isSettings: s.screen === 'settings', settingsProfile: s.settingsProfile, notificationToggles, saveSettingsLabel: s.saveSettingsLabel, saveSettings: actions.saveSettings,
     onSettingsFullName: actions.onSettingsProfile('fullName'), onSettingsNickname: actions.onSettingsProfile('nickname'), onSettingsEmail: actions.onSettingsProfile('email'),
     onSettingsPassword: actions.onSettingsProfile('password'),
-    settingsSkillOptions: skillOptionsList.map((label) => ({
+    settingsSkillOptions: s.skillOptions.map((label) => ({
       label, onClick: actions.toggleSettingsSkill(label),
       bg: s.settingsProfile.skills.includes(label) ? '#2563EB' : '#F3F4F6', color: s.settingsProfile.skills.includes(label) ? '#fff' : '#6B7280'
     })),

@@ -8,8 +8,8 @@ export default function AssignmentDetailScreen({ v }) {
         <span>←</span><span>ตัวเลือก</span><span>|</span><span style={{ color: '#111827', fontWeight: 600 }}>{a.title}</span>
       </div>
       <div style={{ fontWeight: 700, fontSize: 17, color: '#111827', marginTop: 8 }}>{a.title}</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>{a.groupLabel} &nbsp;·&nbsp; มอบหมาย: {a.assignedDate} &nbsp;·&nbsp; กำหนดส่ง: {a.dueDate}</div>
-      <div style={{ background: '#FEF3C7', color: '#D97706', borderRadius: 10, padding: '12px 16px', margin: '16px 0', fontSize: 12.5, fontWeight: 600 }}>⏰ เหลืออีก {a.timeLeft} ก่อนกำหนดส่งงาน</div>
+      <div style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>{a.groupLabel} &nbsp;·&nbsp; กำหนดส่ง: {a.dueDate}</div>
+      <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '6px 14px', borderRadius: 20, background: a.statusBg, color: a.statusColor, margin: '12px 0 4px' }}>{a.statusLabel}</span>
       <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 8 }}>คำอธิบาย</div>
       <div style={{ fontSize: 12.5, color: '#4B5A6E', lineHeight: 1.7, marginBottom: 18 }}>{a.description}</div>
       <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 8 }}>ไฟล์ที่เกี่ยวข้อง</div>

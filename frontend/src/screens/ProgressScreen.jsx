@@ -23,7 +23,7 @@ export default function ProgressScreen({ v }) {
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: task.statusColor }}></span>
                   <span style={{ fontSize: 12.5, color: '#111827', fontWeight: 500 }}>{task.title}</span>
                 </div>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#374151' }}>{task.percent}%</span>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: task.statusBg, color: task.statusColor }}>{task.statusLabel}</span>
               </div>
             ))}
           </div>
