@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { toast } from 'react-toastify';
 import {
   ADMIN_EMAIL, LEADER_EMAIL, initialGroupsData, initialTasks,
   initialCalendarEvents, initialAdminUsersList, initialModerationQueue, skillOptionsList
@@ -56,7 +57,6 @@ const initialState = {
   adminUsersList: initialAdminUsersList,
   currentUser: { name: '', firstName: '', studentId: '' },
   moderationQueue: initialModerationQueue,
-  toasts: [],
   groupsData: initialGroupsData
 };
 
@@ -78,12 +78,9 @@ export default function useAppState() {
   const evalCacheRef = useRef({});
 
   const notify = useCallback((type, msg) => {
-    const id = Date.now() + Math.random();
-    setState((s) => ({ ...s, toasts: [...s.toasts, { id, type, msg }] }));
-    setTimeout(() => setState((s) => ({ ...s, toasts: s.toasts.filter((t) => t.id !== id) })), 2500);
+    (toast[type] || toast.info)(msg);
   }, []);
 
-  const dismissToast = (id) => () => setState((s) => ({ ...s, toasts: s.toasts.filter((t) => t.id !== id) }));
   const stopPropagation = (e) => e.stopPropagation();
 
   const go = (screen) => () => setState((s) => ({ ...s, screen }));
@@ -93,24 +90,24 @@ export default function useAppState() {
   const toggleLoginPw = () => setState((s) => ({ ...s, loginShowPw: !s.loginShowPw }));
 
   const handleLogin = () => {
-    setState((s) => {
-      const { loginEmail, loginPassword } = s;
-      if (!/^\S+@\S+\.\S+$/.test(loginEmail)) return { ...s, loginError: 'กรุณากรอกอีเมลให้ถูกต้อง' };
-      if (!loginPassword) return { ...s, loginError: 'กรุณากรอกรหัสผ่าน' };
-      if (loginEmail.toLowerCase() === ADMIN_EMAIL) {
-        notify('success', 'เข้าสู่ระบบสำเร็จ');
-        return { ...s, screen: 'admin', loginError: '', isAdminMode: true, currentUser: { name: 'ผู้ดูแลระบบ', firstName: 'ผู้ดูแลระบบ' } };
-      }
-      if (loginEmail.toLowerCase() === LEADER_EMAIL) {
-        notify('success', 'เข้าสู่ระบบสำเร็จในฐานะหัวหน้ากลุ่ม');
-        return { ...s, screen: 'dashboard', loginError: '', isAdminMode: false, currentUser: { name: 'สมชาย วิลิ', firstName: 'สมชาย', studentId: '6412001' } };
-      }
-      const local = loginEmail.split('@')[0].replace(/[._]+/g, ' ').trim();
-      const parts = local.split(' ').filter(Boolean);
-      const displayName = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || local;
+    const { loginEmail, loginPassword } = state;
+    if (!/^\S+@\S+\.\S+$/.test(loginEmail)) { setState((s) => ({ ...s, loginError: 'กรุณากรอกอีเมลให้ถูกต้อง' })); return; }
+    if (!loginPassword) { setState((s) => ({ ...s, loginError: 'กรุณากรอกรหัสผ่าน' })); return; }
+    if (loginEmail.toLowerCase() === ADMIN_EMAIL) {
+      setState((s) => ({ ...s, screen: 'admin', loginError: '', isAdminMode: true, currentUser: { name: 'ผู้ดูแลระบบ', firstName: 'ผู้ดูแลระบบ' } }));
       notify('success', 'เข้าสู่ระบบสำเร็จ');
-      return { ...s, screen: 'dashboard', loginError: '', isAdminMode: false, currentUser: { name: displayName, firstName: parts[0] || displayName } };
-    });
+      return;
+    }
+    if (loginEmail.toLowerCase() === LEADER_EMAIL) {
+      setState((s) => ({ ...s, screen: 'dashboard', loginError: '', isAdminMode: false, currentUser: { name: 'สมชาย วิลิ', firstName: 'สมชาย', studentId: '6412001' } }));
+      notify('success', 'เข้าสู่ระบบสำเร็จในฐานะหัวหน้ากลุ่ม');
+      return;
+    }
+    const local = loginEmail.split('@')[0].replace(/[._]+/g, ' ').trim();
+    const parts = local.split(' ').filter(Boolean);
+    const displayName = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || local;
+    setState((s) => ({ ...s, screen: 'dashboard', loginError: '', isAdminMode: false, currentUser: { name: displayName, firstName: parts[0] || displayName } }));
+    notify('success', 'เข้าสู่ระบบสำเร็จ');
   };
 
   const onSu = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, su: { ...s.su, [field]: v } })); };
@@ -122,36 +119,32 @@ export default function useAppState() {
   });
 
   const handleSignup = () => {
-    setState((s) => {
-      const su = s.su;
-      if (!su.firstName || !su.lastName || !su.nickname || !su.email) return { ...s, signupError: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
-      if (!su.password || su.password !== su.confirmPassword) return { ...s, signupError: 'รหัสผ่านไม่ตรงกัน' };
-      const { skills, skillOptions } = resolveSkills(su.skills, su.skillOther, s.skillOptions);
-      const name = [su.firstName, su.lastName].filter(Boolean).join(' ');
-      notify('success', 'สมัครสมาชิกสำเร็จ');
-      return { ...s, screen: 'dashboard', signupError: '', skillOptions, su: { ...su, skills, skillOther: '' }, currentUser: { name, firstName: su.nickname || su.firstName, studentId: su.studentId } };
-    });
+    const su = state.su;
+    if (!su.firstName || !su.lastName || !su.nickname || !su.email) { setState((s) => ({ ...s, signupError: 'กรุณากรอกข้อมูลให้ครบถ้วน' })); return; }
+    if (!su.password || su.password !== su.confirmPassword) { setState((s) => ({ ...s, signupError: 'รหัสผ่านไม่ตรงกัน' })); return; }
+    const { skills, skillOptions } = resolveSkills(su.skills, su.skillOther, state.skillOptions);
+    const name = [su.firstName, su.lastName].filter(Boolean).join(' ');
+    setState((s) => ({ ...s, screen: 'dashboard', signupError: '', skillOptions, su: { ...su, skills, skillOther: '' }, currentUser: { name, firstName: su.nickname || su.firstName, studentId: su.studentId } }));
+    notify('success', 'สมัครสมาชิกสำเร็จ');
   };
 
   const onCg = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, cg: { ...s.cg, [field]: v } })); };
 
   const handleCreateGroup = () => {
-    setState((s) => {
-      const cg = s.cg;
-      if (!cg.code || !cg.name || !cg.teacher) return { ...s, cgError: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
-      const letter = String.fromCharCode(65 + s.groupsData.length);
-      const joinCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-      const me = s.currentUser;
-      const myName = me.name || 'สมชาย วิลิ';
-      const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
-      const newGroup = {
-        id: letter, letter, code: joinCode, subjectCode: cg.code, name: cg.name, teacher: 'อ.' + cg.teacher, subtitle: cg.name,
-        memberCount: 1, taskCount: 0, tint: '#EFF6FF', accent: '#2563EB',
-        members: [{ name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', isLeader: true, skills: [] }]
-      };
-      notify('success', 'สร้างกลุ่มสำเร็จ');
-      return { ...s, groupsData: [...s.groupsData, newGroup], newGroupCode: joinCode, cgError: '', cg: { code: '', name: '', teacher: '' }, screen: 'groupCreated' };
-    });
+    const cg = state.cg;
+    if (!cg.code || !cg.name || !cg.teacher) { setState((s) => ({ ...s, cgError: 'กรุณากรอกข้อมูลให้ครบถ้วน' })); return; }
+    const letter = String.fromCharCode(65 + state.groupsData.length);
+    const joinCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const me = state.currentUser;
+    const myName = me.name || 'สมชาย วิลิ';
+    const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
+    const newGroup = {
+      id: letter, letter, code: joinCode, subjectCode: cg.code, name: cg.name, teacher: 'อ.' + cg.teacher, subtitle: cg.name,
+      memberCount: 1, taskCount: 0, tint: '#EFF6FF', accent: '#2563EB',
+      members: [{ name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', isLeader: true, skills: [] }]
+    };
+    setState((s) => ({ ...s, groupsData: [...s.groupsData, newGroup], newGroupCode: joinCode, cgError: '', cg: { code: '', name: '', teacher: '' }, screen: 'groupCreated' }));
+    notify('success', 'สร้างกลุ่มสำเร็จ');
   };
 
   const onJoinDigit = (i) => (e) => {
@@ -160,24 +153,22 @@ export default function useAppState() {
   };
 
   const handleJoinGroup = () => {
-    setState((s) => {
-      const code = s.joinDigits.join('');
-      if (code.length < 6) return { ...s, joinError: 'กรุณากรอกรหัสให้ครบ 6 หลัก' };
-      const groupsData = s.groupsData;
-      const group = groupsData.find((g) => g.code.toUpperCase() === code.toUpperCase());
-      if (!group) return { ...s, joinError: 'ไม่พบรหัสทีมนี้ กรุณาตรวจสอบอีกครั้ง' };
-      const me = s.currentUser;
-      const myName = me.name || 'สมชาย วิลิ';
-      const alreadyMember = group.members.some((m) => (me.studentId && m.studentId === me.studentId) || m.name === myName);
-      let newGroupsData = groupsData;
-      if (!alreadyMember) {
-        const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
-        const newMember = { name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', skills: [] };
-        newGroupsData = groupsData.map((g) => g.id === group.id ? { ...g, members: [...g.members, newMember], memberCount: g.members.length + 1 } : g);
-      }
-      notify('success', 'เข้าร่วมกลุ่มสำเร็จ');
-      return { ...s, groupsData: newGroupsData, selectedGroupId: group.id, joinError: '', joinDigits: ['', '', '', '', '', ''], screen: 'teams' };
-    });
+    const code = state.joinDigits.join('');
+    if (code.length < 6) { setState((s) => ({ ...s, joinError: 'กรุณากรอกรหัสให้ครบ 6 หลัก' })); return; }
+    const groupsData = state.groupsData;
+    const group = groupsData.find((g) => g.code.toUpperCase() === code.toUpperCase());
+    if (!group) { setState((s) => ({ ...s, joinError: 'ไม่พบรหัสทีมนี้ กรุณาตรวจสอบอีกครั้ง' })); return; }
+    const me = state.currentUser;
+    const myName = me.name || 'สมชาย วิลิ';
+    const alreadyMember = group.members.some((m) => (me.studentId && m.studentId === me.studentId) || m.name === myName);
+    let newGroupsData = groupsData;
+    if (!alreadyMember) {
+      const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
+      const newMember = { name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', skills: [] };
+      newGroupsData = groupsData.map((g) => g.id === group.id ? { ...g, members: [...g.members, newMember], memberCount: g.members.length + 1 } : g);
+    }
+    setState((s) => ({ ...s, groupsData: newGroupsData, selectedGroupId: group.id, joinError: '', joinDigits: ['', '', '', '', '', ''], screen: 'teams' }));
+    notify('success', 'เข้าร่วมกลุ่มสำเร็จ');
   };
 
   const copyCode = () => {
@@ -226,52 +217,47 @@ export default function useAppState() {
   };
 
   const exportEvaluation = () => {
-    setState((s) => {
-      const group = s.groupsData.find((g) => g.id === s.selectedGroupId) || s.groupsData[0];
-      const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const rowsHtml = group.members.map((m) => {
-        const entry = getEvalEntry(group.code, m.studentId, s);
-        const scores = evalCriteriaListScores(entry);
-        const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '0.0';
-        const scoreCells = scores.map((sc) => '<td style="text-align:center;padding:8px;border:1px solid #ddd;">' + (sc || '-') + '</td>').join('');
-        return '<tr><td style="padding:8px;border:1px solid #ddd;">' + esc(m.name) + '</td><td style="padding:8px;border:1px solid #ddd;">' + esc(m.studentId) + '</td>' + scoreCells +
-          '<td style="padding:8px;border:1px solid #ddd;text-align:center;font-weight:700;">' + avg + '</td>' +
-          '<td style="padding:8px;border:1px solid #ddd;">' + esc(entry.note || '-') + '</td></tr>';
-      }).join('');
-      const criteriaHeaders = evalCriteriaHeaders(esc);
-      const scriptOpen = '<' + 'script>';
-      const scriptClose = '<' + '/script>';
-      const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>ผลประเมิน ' + esc(group.code) + '</title>' +
-        '<style>body{font-family:"Segoe UI",Tahoma,sans-serif;padding:32px;color:#111827;}h1{font-size:20px;margin-bottom:4px;}p{font-size:13px;color:#555;margin-bottom:20px;}table{border-collapse:collapse;width:100%;font-size:12.5px;}th{padding:8px;border:1px solid #ddd;background:#f3f4f6;text-align:left;}</style>' +
-        '</head><body>' +
-        '<h1>ผลการประเมินสมาชิกในทีม ' + esc(group.letter) + ' — ' + esc(group.name) + '</h1>' +
-        '<p>รหัสวิชา ' + esc(group.subjectCode) + ' · อาจารย์ผู้สอน ' + esc(group.teacher) + ' · คะแนนเต็มข้อละ 5 · ไม่ระบุตัวตนผู้ประเมิน</p>' +
-        '<table><thead><tr><th>ชื่อสมาชิก</th><th>รหัสนิสิต</th>' + criteriaHeaders + '<th>คะแนนเฉลี่ย</th><th>ความคิดเห็นเกี่ยวกับการทำงาน</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
-        scriptOpen + 'window.onload = function(){ window.print(); };' + scriptClose +
-        '</body></html>';
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      notify('success', 'เปิดหน้าต่างสำหรับส่งออก PDF แล้ว');
-      return s;
-    });
+    const group = state.groupsData.find((g) => g.id === state.selectedGroupId) || state.groupsData[0];
+    const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rowsHtml = group.members.map((m) => {
+      const entry = getEvalEntry(group.code, m.studentId, state);
+      const scores = evalCriteriaListScores(entry);
+      const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '0.0';
+      const scoreCells = scores.map((sc) => '<td style="text-align:center;padding:8px;border:1px solid #ddd;">' + (sc || '-') + '</td>').join('');
+      return '<tr><td style="padding:8px;border:1px solid #ddd;">' + esc(m.name) + '</td><td style="padding:8px;border:1px solid #ddd;">' + esc(m.studentId) + '</td>' + scoreCells +
+        '<td style="padding:8px;border:1px solid #ddd;text-align:center;font-weight:700;">' + avg + '</td>' +
+        '<td style="padding:8px;border:1px solid #ddd;">' + esc(entry.note || '-') + '</td></tr>';
+    }).join('');
+    const criteriaHeaders = evalCriteriaHeaders(esc);
+    const scriptOpen = '<' + 'script>';
+    const scriptClose = '<' + '/script>';
+    const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>ผลประเมิน ' + esc(group.code) + '</title>' +
+      '<style>body{font-family:"Segoe UI",Tahoma,sans-serif;padding:32px;color:#111827;}h1{font-size:20px;margin-bottom:4px;}p{font-size:13px;color:#555;margin-bottom:20px;}table{border-collapse:collapse;width:100%;font-size:12.5px;}th{padding:8px;border:1px solid #ddd;background:#f3f4f6;text-align:left;}</style>' +
+      '</head><body>' +
+      '<h1>ผลการประเมินสมาชิกในทีม ' + esc(group.letter) + ' — ' + esc(group.name) + '</h1>' +
+      '<p>รหัสวิชา ' + esc(group.subjectCode) + ' · อาจารย์ผู้สอน ' + esc(group.teacher) + ' · คะแนนเต็มข้อละ 5 · ไม่ระบุตัวตนผู้ประเมิน</p>' +
+      '<table><thead><tr><th>ชื่อสมาชิก</th><th>รหัสนิสิต</th>' + criteriaHeaders + '<th>คะแนนเฉลี่ย</th><th>ความคิดเห็นเกี่ยวกับการทำงาน</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+      scriptOpen + 'window.onload = function(){ window.print(); };' + scriptClose +
+      '</body></html>';
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    notify('success', 'เปิดหน้าต่างสำหรับส่งออก PDF แล้ว');
   };
 
   const onChatInputChange = (e) => { const v = e.target.value; setState((s) => ({ ...s, chatInput: v })); };
   const onChatKeyDown = (e) => { if (e.key === 'Enter') sendChat(); };
   const sendChat = () => {
-    setState((s) => {
-      const text = s.chatInput.trim();
-      if (!text) return s;
-      const group = s.groupsData.find((g) => g.id === s.selectedGroupId) || s.groupsData[0];
-      const code = group.code;
-      const list = s.chatByGroup[code] || [];
-      const now = new Date();
-      const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-      const updated = [...list, { id: Date.now(), author: s.currentUser.name || 'ฉัน', text, mine: true, time }];
-      notify('info', 'ส่งข้อความแล้ว');
-      return { ...s, chatByGroup: { ...s.chatByGroup, [code]: updated }, chatInput: '' };
-    });
+    const text = state.chatInput.trim();
+    if (!text) return;
+    const group = state.groupsData.find((g) => g.id === state.selectedGroupId) || state.groupsData[0];
+    const code = group.code;
+    const list = state.chatByGroup[code] || [];
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    const updated = [...list, { id: Date.now(), author: state.currentUser.name || 'ฉัน', text, mine: true, time }];
+    setState((s) => ({ ...s, chatByGroup: { ...s.chatByGroup, [code]: updated }, chatInput: '' }));
+    notify('info', 'ส่งข้อความแล้ว');
   };
 
   const openTaskModal = (column) => () => setState((s) => {
@@ -282,24 +268,22 @@ export default function useAppState() {
   const onTaskFormField = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, taskForm: { ...s.taskForm, [field]: v } })); };
 
   const submitTaskModal = () => {
-    setState((s) => {
-      const group = s.groupsData.find((g) => g.id === s.taskModalGroupId) || s.groupsData.find((g) => g.id === s.selectedGroupId) || s.groupsData[0];
-      if (!s.taskForm.title.trim()) return s;
-      const isTimeline = s.taskModalColumn === 'timeline';
-      const assignee = isTimeline ? (group.members[Number(s.taskForm.assigneeIdx)] || group.members[0]) : null;
-      const newTask = {
-        id: Date.now(),
-        groupId: group.id,
-        title: s.taskForm.title,
-        description: s.taskForm.description,
-        assignedTo: assignee ? assignee.name : null,
-        dueDate: isTimeline ? s.taskForm.dueDate : new Date().toISOString().slice(0, 10),
-        status: isTimeline ? 'pending' : s.taskModalColumn,
-        attachments: []
-      };
-      notify('success', isTimeline ? ('มอบหมายงานให้ ' + assignee.name + ' แล้ว') : 'เพิ่มงานลงบอร์ดแล้ว');
-      return { ...s, tasks: [...s.tasks, newTask], taskModalOpen: false };
-    });
+    const group = state.groupsData.find((g) => g.id === state.taskModalGroupId) || state.groupsData.find((g) => g.id === state.selectedGroupId) || state.groupsData[0];
+    if (!state.taskForm.title.trim()) return;
+    const isTimeline = state.taskModalColumn === 'timeline';
+    const assignee = isTimeline ? (group.members[Number(state.taskForm.assigneeIdx)] || group.members[0]) : null;
+    const newTask = {
+      id: Date.now(),
+      groupId: group.id,
+      title: state.taskForm.title,
+      description: state.taskForm.description,
+      assignedTo: assignee ? assignee.name : null,
+      dueDate: isTimeline ? state.taskForm.dueDate : new Date().toISOString().slice(0, 10),
+      status: isTimeline ? 'pending' : state.taskModalColumn,
+      attachments: []
+    };
+    setState((s) => ({ ...s, tasks: [...s.tasks, newTask], taskModalOpen: false }));
+    notify('success', isTimeline ? ('มอบหมายงานให้ ' + assignee.name + ' แล้ว') : 'เพิ่มงานลงบอร์ดแล้ว');
   };
 
   const openTask = (id) => () => setState((s) => ({ ...s, selectedAssignmentId: id, screen: 'progress' }));
@@ -309,27 +293,23 @@ export default function useAppState() {
   const setAssignmentView = (v) => () => setState((s) => ({ ...s, assignmentView: v }));
 
   const addAssignment = () => {
-    setState((s) => {
-      const group = s.groupsData.find((g) => g.id === s.selectedGroupId) || s.groupsData[0];
-      const title = window.prompt('ชื่อ Assignment ใหม่:');
-      if (!title) return s;
-      const dueDate = window.prompt('วันที่กำหนดส่ง (YYYY-MM-DD):', '') || '';
-      const newTask = { id: Date.now(), groupId: group.id, title, description: '', assignedTo: null, dueDate, status: 'pending', attachments: [] };
-      notify('success', 'เพิ่ม Assignment แล้ว');
-      return { ...s, tasks: [...s.tasks, newTask] };
-    });
+    const group = state.groupsData.find((g) => g.id === state.selectedGroupId) || state.groupsData[0];
+    const title = window.prompt('ชื่อ Assignment ใหม่:');
+    if (!title) return;
+    const dueDate = window.prompt('วันที่กำหนดส่ง (YYYY-MM-DD):', '') || '';
+    const newTask = { id: Date.now(), groupId: group.id, title, description: '', assignedTo: null, dueDate, status: 'pending', attachments: [] };
+    setState((s) => ({ ...s, tasks: [...s.tasks, newTask] }));
+    notify('success', 'เพิ่ม Assignment แล้ว');
   };
 
   const addCalendarEvent = () => {
-    setState((s) => {
-      const title = window.prompt('ชื่อกิจกรรมใหม่:');
-      if (!title) return s;
-      const date = window.prompt('วันที่ (เช่น 22 มี.ค.):', '') || '';
-      const time = window.prompt('เวลา (เช่น 14:00–15:00):', '') || '';
-      const group = s.groupsData.find((g) => g.id === s.selectedGroupId) || s.groupsData[0];
-      notify('success', 'เพิ่มกิจกรรมแล้ว');
-      return { ...s, calendarEvents: [...s.calendarEvents, { title, date, time, group: 'ทีม ' + group.letter, color: '#2563EB' }] };
-    });
+    const title = window.prompt('ชื่อกิจกรรมใหม่:');
+    if (!title) return;
+    const date = window.prompt('วันที่ (เช่น 22 มี.ค.):', '') || '';
+    const time = window.prompt('เวลา (เช่น 14:00–15:00):', '') || '';
+    const group = state.groupsData.find((g) => g.id === state.selectedGroupId) || state.groupsData[0];
+    setState((s) => ({ ...s, calendarEvents: [...s.calendarEvents, { title, date, time, group: 'ทีม ' + group.letter, color: '#2563EB' }] }));
+    notify('success', 'เพิ่มกิจกรรมแล้ว');
   };
 
   const simulateUpload = () => {
@@ -398,7 +378,7 @@ export default function useAppState() {
   const goSettings = () => setState((s) => ({ ...s, screen: s.isAdminMode ? 'adminSettings' : 'settings' }));
 
   const actions = {
-    notify, dismissToast, stopPropagation, go, goSettings,
+    notify, stopPropagation, go, goSettings,
     onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, handleLogin,
     onSu, onSuSkillOther, toggleGender, toggleSkill, handleSignup,
     onCg, handleCreateGroup, onJoinDigit, handleJoinGroup, copyCode,

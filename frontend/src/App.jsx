@@ -1,7 +1,9 @@
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 import useAppState from './state/useAppState.js';
 import deriveVals from './state/deriveVals.js';
 
-import ToastStack from './components/ToastStack.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Header from './components/Header.jsx';
 import TaskModal from './components/TaskModal.jsx';
@@ -33,7 +35,7 @@ export default function App() {
 
   return (
     <>
-      <ToastStack toasts={v.toasts} dismissToast={v.dismissToast} />
+      <ToastContainer position="top-right" autoClose={2500} newestOnTop closeOnClick theme="dark" />
       <TaskModal v={v} />
       <div style={{ width: '100%', height: '100vh', background: '#EFF6FF', display: 'flex', overflow: 'hidden', color: '#111827' }}>
         {v.showSidebar && <Sidebar v={v} />}
