@@ -1,16 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
-  ADMIN_EMAIL, LEADER_EMAIL, initialGroupsData, initialTasks,
+  initialGroupsData, initialTasks,
   initialCalendarEvents, initialAdminUsersList, initialModerationQueue, skillOptionsList
 } from '../data/seedData.js';
 
 const initialState = {
   screen: 'login',
   isAdminMode: false,
-  loginEmail: '', loginPassword: '', loginShowPw: false, loginError: '',
+  loginEmail: '', loginPassword: '', loginShowPw: false,
   su: { firstName: '', lastName: '', nickname: '', studentId: '', gender: '', birthdate: '', email: '', phone: '', skills: [], skillOther: '', password: '', confirmPassword: '' },
-  signupError: '',
   cg: { code: '', name: '', teacher: '' },
   cgError: '',
   joinDigits: ['', '', '', '', '', ''],
@@ -85,30 +84,15 @@ export default function useAppState() {
 
   const go = (screen) => () => setState((s) => ({ ...s, screen }));
 
-  const onLoginEmailChange = (e) => setState((s) => ({ ...s, loginEmail: e.target.value, loginError: '' }));
-  const onLoginPasswordChange = (e) => setState((s) => ({ ...s, loginPassword: e.target.value, loginError: '' }));
+  const onLoginEmailChange = (e) => setState((s) => ({ ...s, loginEmail: e.target.value }));
+  const onLoginPasswordChange = (e) => setState((s) => ({ ...s, loginPassword: e.target.value }));
   const toggleLoginPw = () => setState((s) => ({ ...s, loginShowPw: !s.loginShowPw }));
 
-  const handleLogin = () => {
-    const { loginEmail, loginPassword } = state;
-    if (!/^\S+@\S+\.\S+$/.test(loginEmail)) { setState((s) => ({ ...s, loginError: 'กรุณากรอกอีเมลให้ถูกต้อง' })); return; }
-    if (!loginPassword) { setState((s) => ({ ...s, loginError: 'กรุณากรอกรหัสผ่าน' })); return; }
-    if (loginEmail.toLowerCase() === ADMIN_EMAIL) {
-      setState((s) => ({ ...s, screen: 'admin', loginError: '', isAdminMode: true, currentUser: { name: 'ผู้ดูแลระบบ', firstName: 'ผู้ดูแลระบบ' } }));
-      notify('success', 'เข้าสู่ระบบสำเร็จ');
-      return;
-    }
-    if (loginEmail.toLowerCase() === LEADER_EMAIL) {
-      setState((s) => ({ ...s, screen: 'dashboard', loginError: '', isAdminMode: false, currentUser: { name: 'สมชาย วิลิ', firstName: 'สมชาย', studentId: '6412001' } }));
-      notify('success', 'เข้าสู่ระบบสำเร็จในฐานะหัวหน้ากลุ่ม');
-      return;
-    }
-    const local = loginEmail.split('@')[0].replace(/[._]+/g, ' ').trim();
-    const parts = local.split(' ').filter(Boolean);
-    const displayName = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || local;
-    setState((s) => ({ ...s, screen: 'dashboard', loginError: '', isAdminMode: false, currentUser: { name: displayName, firstName: parts[0] || displayName } }));
-    notify('success', 'เข้าสู่ระบบสำเร็จ');
-  };
+  // actual authentication happens via /api/login directly in LoginScreen.jsx;
+  // this just applies the resulting session to central state once that call succeeds
+  const completeLogin = (currentUser, isAdminMode) => setState((s) => ({
+    ...s, screen: isAdminMode ? 'admin' : 'dashboard', isAdminMode, currentUser
+  }));
 
   const onSu = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, su: { ...s.su, [field]: v } })); };
   const onSuSkillOther = (e) => { const v = e.target.value; setState((s) => ({ ...s, su: { ...s.su, skillOther: v } })); };
@@ -118,15 +102,11 @@ export default function useAppState() {
     return { ...s, su: { ...s.su, skills: has ? s.su.skills.filter((x) => x !== skill) : [...s.su.skills, skill] } };
   });
 
-  const handleSignup = () => {
-    const su = state.su;
-    if (!su.firstName || !su.lastName || !su.nickname || !su.email) { setState((s) => ({ ...s, signupError: 'กรุณากรอกข้อมูลให้ครบถ้วน' })); return; }
-    if (!su.password || su.password !== su.confirmPassword) { setState((s) => ({ ...s, signupError: 'รหัสผ่านไม่ตรงกัน' })); return; }
-    const { skills, skillOptions } = resolveSkills(su.skills, su.skillOther, state.skillOptions);
-    const name = [su.firstName, su.lastName].filter(Boolean).join(' ');
-    setState((s) => ({ ...s, screen: 'dashboard', signupError: '', skillOptions, su: { ...su, skills, skillOther: '' }, currentUser: { name, firstName: su.nickname || su.firstName, studentId: su.studentId } }));
-    notify('success', 'สมัครสมาชิกสำเร็จ');
-  };
+  // registration itself is a real API call made directly in SignupScreen.jsx;
+  // this just clears the form after a successful signup
+  const resetSu = () => setState((s) => ({
+    ...s, su: { firstName: '', lastName: '', nickname: '', studentId: '', gender: '', birthdate: '', email: '', phone: '', skills: [], skillOther: '', password: '', confirmPassword: '' }
+  }));
 
   const onCg = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, cg: { ...s.cg, [field]: v } })); };
 
@@ -355,10 +335,13 @@ export default function useAppState() {
       currentUser: field === 'name' ? { ...s.currentUser, name: v, firstName: v.split(' ')[0] || v } : s.currentUser
     }));
   };
-  const handleLogout = () => setState((s) => ({
-    ...s, screen: 'login', isAdminMode: false, loginEmail: '', loginPassword: '', loginError: '',
-    currentUser: { name: '', firstName: '' }
-  }));
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setState((s) => ({
+      ...s, screen: 'login', isAdminMode: false, loginEmail: '', loginPassword: '',
+      currentUser: { name: '', firstName: '' }
+    }));
+  };
   const onPolicy = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, policy: { ...s.policy, [field]: v } })); };
   const toggleAdminNotif = (key) => () => setState((s) => ({ ...s, adminNotif: { ...s.adminNotif, [key]: !s.adminNotif[key] } }));
   const toggleAdminUserRole = (idx) => () => setState((s) => ({
@@ -379,8 +362,8 @@ export default function useAppState() {
 
   const actions = {
     notify, stopPropagation, go, goSettings,
-    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, handleLogin,
-    onSu, onSuSkillOther, toggleGender, toggleSkill, handleSignup,
+    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin,
+    onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
     onCg, handleCreateGroup, onJoinDigit, handleJoinGroup, copyCode,
     openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, setTeamTab,
     getEvalEntry, setEvalRating, setEvalNote, setLeaderboardPeriod,

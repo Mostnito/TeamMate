@@ -81,15 +81,6 @@ export default function deriveVals(state, actions) {
     onClick: n.key === 'projects' ? actions.goProjects : actions.go(n.key === 'dashboard' ? 'dashboard' : n.key)
   }));
 
-  const genderOptions = ['ชาย', 'หญิง', 'ไม่ระบุ'].map((label) => ({
-    label, onClick: actions.toggleGender(label),
-    bg: s.su.gender === label ? '#2563EB' : '#F3F4F6', color: s.su.gender === label ? '#fff' : '#6B7280'
-  }));
-  const skillOptions = s.skillOptions.map((label) => ({
-    label, onClick: actions.toggleSkill(label),
-    bg: s.su.skills.includes(label) ? '#2563EB' : '#F3F4F6', color: s.su.skills.includes(label) ? '#fff' : '#6B7280'
-  }));
-
   const joinDigits = s.joinDigits.map((val, i) => ({ val, onChange: actions.onJoinDigit(i) }));
   const groups = groupsData.map((g) => ({ ...g, onOpen: actions.openGroup(g.id) }));
 
@@ -220,12 +211,12 @@ export default function deriveVals(state, actions) {
   return {
     showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel,
     goSettings: actions.goSettings, settingsIconColor: settingsActive ? '#2563EB' : '#6B7280', settingsTextColor: settingsActive ? '#2563EB' : '#374151', handleLogout: actions.handleLogout,
-    isLogin, loginEmail: s.loginEmail, loginPassword: s.loginPassword, loginError: s.loginError,
+    isLogin, loginEmail: s.loginEmail, loginPassword: s.loginPassword,
     loginPwType: s.loginShowPw ? 'text' : 'password', loginPwIcon: s.loginShowPw ? 'ซ่อน' : 'แสดง',
     onLoginEmailChange: actions.onLoginEmailChange, onLoginPasswordChange: actions.onLoginPasswordChange, toggleLoginPw: actions.toggleLoginPw,
-    handleLogin: actions.handleLogin, goSignup: actions.go('signup'),
-    isSignup, su: s.su, genderOptions, skillOptions, showSkillOtherInput: s.su.skills.includes('อื่น ๆ'), onSuSkillOther: actions.onSuSkillOther,
-    signupError: s.signupError, handleSignup: actions.handleSignup, goLogin: actions.go('login'),
+    completeLogin: actions.completeLogin, goSignup: actions.go('signup'),
+    isSignup, su: s.su, toggleGender: actions.toggleGender, toggleSkill: actions.toggleSkill, showSkillOtherInput: s.su.skills.includes('อื่น ๆ'), onSuSkillOther: actions.onSuSkillOther,
+    resetSu: actions.resetSu, goLogin: actions.go('login'),
     onSuFirstName: actions.onSu('firstName'), onSuLastName: actions.onSu('lastName'), onSuNickname: actions.onSu('nickname'), onSuStudentId: actions.onSu('studentId'),
     onSuBirthdate: actions.onSu('birthdate'), onSuEmail: actions.onSu('email'), onSuPhone: actions.onSu('phone'), onSuPassword: actions.onSu('password'), onSuConfirmPassword: actions.onSu('confirmPassword'),
     isDashboard: s.screen === 'dashboard' && hasTeam,

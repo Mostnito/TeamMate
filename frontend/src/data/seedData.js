@@ -1,6 +1,3 @@
-export const ADMIN_EMAIL = 'admin@teammate.com';
-export const LEADER_EMAIL = 'leader@teammate.com';
-
 export const skillOptionsList = [
   'Frontend', 'Backend', 'UI/UX Design', 'Database', 'DevOps',
   'AI/ML', 'Presentation', 'Documentation', 'Testing', 'Project Management', 'อื่น ๆ'
