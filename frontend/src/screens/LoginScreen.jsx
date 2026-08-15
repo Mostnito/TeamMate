@@ -30,7 +30,8 @@ export default function LoginScreen({ v }) {
         name: res.data.nickname,
         firstName: res.data.nickname,
         studentId: res.data.studentId || '',
-        userId: res.data.userId
+        userId: res.data.userId,
+        avatarUrl: res.data.avatarUrl || ''
       };
 
       v.completeLogin(currentUser, isAdminMode);

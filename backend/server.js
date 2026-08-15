@@ -5,6 +5,9 @@ const app = express();
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const { Server } = require("socket.io");
 const server = http.createServer(app);
 
@@ -28,6 +31,25 @@ pool.connect((err) => {
 
 app.use(cors());
 app.use(express.json());
+
+const avatarDir = path.join(__dirname, 'uploads', 'avatars');
+fs.mkdirSync(avatarDir, { recursive: true });
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+const AVATAR_MIME_TO_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+const uploadAvatar = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, avatarDir),
+        filename: (req, file, cb) => cb(null, `user_${req.params.id}_${Date.now()}${AVATAR_MIME_TO_EXT[file.mimetype]}`)
+    }),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!AVATAR_MIME_TO_EXT[file.mimetype]) {
+            return cb(new Error('INVALID_FILE_TYPE'));
+        }
+        cb(null, true);
+    }
+});
 
 //Authentication middleware
 function authenticateToken(req, res, next){
@@ -155,7 +177,7 @@ app.post('/api/login', async (req, res) => {
         }
 
         const token = jwt.sign({ userId: user.user_id }, process.env.TOKEN_SECRET, { expiresIn: '1h' });
-        res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, message: 'เข้าสู่ระบบสำเร็จ' });
+        res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, message: 'เข้าสู่ระบบสำเร็จ' });
     } catch (err) {
         console.error('Error during login:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
@@ -164,12 +186,12 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/check', authenticateToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT user_id, nickname, student_id, system_role FROM users WHERE user_id = $1', [req.user.userId]);
+        const result = await pool.query('SELECT user_id, nickname, student_id, system_role, avatar_path FROM users WHERE user_id = $1', [req.user.userId]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
         }
         const user = result.rows[0];
-        res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role });
+        res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path });
     } catch (err) {
         console.error('Error fetching current user:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
@@ -184,7 +206,7 @@ app.get('/api/user/:id', authenticateToken, async (req, res) => {
     }
     try {
         const userResult = await pool.query(
-            'SELECT user_id, firstname, lastname, nickname, student_id, gender_id, birth_date, email, phone FROM users WHERE user_id = $1',
+            'SELECT user_id, firstname, lastname, nickname, student_id, gender_id, birth_date, email, phone, avatar_path FROM users WHERE user_id = $1',
             [userId]
         );
         if (userResult.rows.length === 0) {
@@ -205,6 +227,7 @@ app.get('/api/user/:id', authenticateToken, async (req, res) => {
             birthdate: user.birth_date ? user.birth_date.toISOString().slice(0, 10) : null,
             email: user.email,
             phone: user.phone,
+            avatarUrl: user.avatar_path,
             skills: skillsResult.rows.map((r) => r.skill_name)
         });
     } catch (err) {
@@ -279,6 +302,49 @@ app.put('/api/user/:id', authenticateToken, async (req, res) => {
     } finally {
         client.release();
     }
+});
+
+//Upload profile picture
+app.post('/api/user/:id/avatar', authenticateToken, (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    if (req.user.userId !== userId) {
+        return res.status(403).json({ error: 'ไม่มีสิทธิ์แก้ไขข้อมูลผู้ใช้นี้' });
+    }
+
+    uploadAvatar.single('avatar')(req, res, async (err) => {
+        if (err) {
+            if (err.message === 'INVALID_FILE_TYPE') {
+                return res.status(400).json({ error: 'รองรับเฉพาะไฟล์ JPG, PNG, WEBP เท่านั้น' });
+            }
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 2MB' });
+            }
+            console.error('Error uploading avatar:', err);
+            return res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
+        }
+
+        try {
+            const oldResult = await pool.query('SELECT avatar_path FROM users WHERE user_id = $1', [userId]);
+            const oldPath = oldResult.rows[0]?.avatar_path;
+
+            const avatarUrl = '/uploads/avatars/' + req.file.filename;
+            await pool.query('UPDATE users SET avatar_path = $1 WHERE user_id = $2', [avatarUrl, userId]);
+
+            if (oldPath) {
+                fs.unlink(path.join(__dirname, oldPath), () => {});
+            }
+
+            console.log('Avatar updated successfully:', userId);
+            res.json({ avatarUrl, message: 'อัปโหลดรูปโปรไฟล์สำเร็จ' });
+        } catch (dbErr) {
+            fs.unlink(req.file.path, () => {});
+            console.error('Error saving avatar path:', dbErr);
+            res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+        }
+    });
 });
 
 //Get Gender

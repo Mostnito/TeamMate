@@ -46,7 +46,7 @@ export default function App() {
     axios.get('/api/check', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
       .then((res) => {
         const isAdminMode = res.data.role === 'admin';
-        const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId };
+        const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId, avatarUrl: res.data.avatarUrl || '' };
         actions.completeLogin(currentUser, isAdminMode);
       })
       .catch((err) => {

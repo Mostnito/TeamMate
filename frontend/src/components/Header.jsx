@@ -7,8 +7,11 @@ export default function Header({ v }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: '#2563EB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13 }}>
-            {v.currentUserInitials}
+          <div style={{
+            position: 'relative', width: 34, height: 34, borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13,
+            background: v.currentUserAvatarUrl ? `#2563EB url(${v.currentUserAvatarUrl}) center/cover no-repeat` : '#2563EB'
+          }}>
+            {!v.currentUserAvatarUrl && v.currentUserInitials}
             <span style={{ position: 'absolute', bottom: -2, right: -2, width: 9, height: 9, borderRadius: '50%', background: '#22C55E', border: '2px solid #fff' }}></span>
           </div>
           <div>

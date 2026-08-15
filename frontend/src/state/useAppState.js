@@ -51,7 +51,7 @@ const initialState = {
   taskForm: { title: '', description: '', assigneeIdx: 0, dueDate: '' },
   calendarEvents: initialCalendarEvents,
   adminUsersList: initialAdminUsersList,
-  currentUser: { name: '', firstName: '', studentId: '', userId: null },
+  currentUser: { name: '', firstName: '', studentId: '', userId: null, avatarUrl: '' },
   moderationQueue: initialModerationQueue,
   groupsData: initialGroupsData
 };

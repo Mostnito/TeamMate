@@ -139,7 +139,11 @@ export default function SettingsScreen({ v }) {
       <div style={{ ...card, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>ข้อมูลส่วนตัว</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-          <AvatarSlot />
+          <AvatarSlot
+            userId={v.currentUserId}
+            imageUrl={v.currentUserAvatarUrl}
+            onUploaded={(url) => v.updateCurrentUser({ avatarUrl: url })}
+          />
           <div style={{ fontSize: 11.5, color: '#6B7280' }}>คลิกหรือลากรูปมาวงเพื่อเปลี่ยนรูปโปรไฟล์<br />แนะนำขนาด 200×200px</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
