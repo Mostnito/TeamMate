@@ -134,6 +134,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
+
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -175,6 +176,110 @@ app.get('/api/check', authenticateToken, async (req, res) => {
     }
 });
 
+//Get user profile
+app.get('/api/user/:id', authenticateToken, async (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    if (req.user.userId !== userId) {
+        return res.status(403).json({ error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลผู้ใช้นี้' });
+    }
+    try {
+        const userResult = await pool.query(
+            'SELECT user_id, firstname, lastname, nickname, student_id, gender_id, birth_date, email, phone FROM users WHERE user_id = $1',
+            [userId]
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
+        }
+        const user = userResult.rows[0];
+        const skillsResult = await pool.query(
+            'SELECT s.skill_name FROM user_skills us JOIN skills s ON s.skill_id = us.skill_id WHERE us.user_id = $1',
+            [userId]
+        );
+        res.json({
+            userId: user.user_id,
+            firstName: user.firstname,
+            lastName: user.lastname,
+            nickname: user.nickname,
+            studentId: user.student_id,
+            genderId: user.gender_id,
+            birthdate: user.birth_date ? user.birth_date.toISOString().slice(0, 10) : null,
+            email: user.email,
+            phone: user.phone,
+            skills: skillsResult.rows.map((r) => r.skill_name)
+        });
+    } catch (err) {
+        console.error('Error fetching user profile:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Update user profile
+app.put('/api/user/:id', authenticateToken, async (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    if (req.user.userId !== userId) {
+        return res.status(403).json({ error: 'ไม่มีสิทธิ์แก้ไขข้อมูลผู้ใช้นี้' });
+    }
+
+    const { firstName, lastName, nickname, studentId, genderId, birthdate, phone, skills } = req.body;
+
+    if (!firstName || !lastName || !nickname) {
+        return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    }
+    if (!genderId) {
+        return res.status(400).json({ error: 'กรุณาเลือกเพศ' });
+    }
+    if (!birthdate) {
+        return res.status(400).json({ error: 'กรุณาเลือกวันเกิด' });
+    }
+    if (!/^[0-9]+$/.test((phone || '').trim())) {
+        return res.status(400).json({ error: 'กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลขเท่านั้น' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        if (studentId) {
+            const studentIdCheck = await client.query('SELECT 1 FROM users WHERE student_id = $1 AND user_id != $2', [studentId, userId]);
+            if (studentIdCheck.rows.length) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({ error: 'รหัสนิสิตนี้ถูกใช้งานแล้ว' });
+            }
+        }
+
+        await client.query(
+            `UPDATE users SET gender_id=$1, student_id=$2, firstname=$3, lastname=$4, nickname=$5, birth_date=$6, phone=$7 WHERE user_id=$8`,
+            [genderId, studentId || null, firstName, lastName, nickname, birthdate, phone, userId]
+        );
+
+        await client.query('DELETE FROM user_skills WHERE user_id = $1', [userId]);
+        for (const rawSkillName of (skills || [])) {
+            const skillName = (rawSkillName || '').trim();
+            if (!skillName) continue;
+            const existingSkill = await client.query('SELECT skill_id FROM skills WHERE lower(skill_name) = lower($1)', [skillName]);
+            const skillId = existingSkill.rows.length
+                ? existingSkill.rows[0].skill_id
+                : (await client.query('INSERT INTO skills (skill_name) VALUES ($1) RETURNING skill_id', [skillName])).rows[0].skill_id;
+            await client.query('INSERT INTO user_skills (user_id, skill_id) VALUES ($1, $2) ON CONFLICT (user_id, skill_id) DO NOTHING', [userId, skillId]);
+        }
+
+        await client.query('COMMIT');
+        console.log('User profile updated successfully:', userId);
+        res.json({ message: 'บันทึกการตั้งค่าแล้ว' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error updating user profile:', err);
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'ข้อมูลนี้ถูกใช้งานแล้ว' });
+        }
+        if (err.code === '23503') {
+            return res.status(400).json({ error: 'ข้อมูลเพศไม่ถูกต้อง' });
+        }
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    } finally {
+        client.release();
+    }
+});
 
 //Get Gender
 app.get('/api/gender', async (req, res) =>{

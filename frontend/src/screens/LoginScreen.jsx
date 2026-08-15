@@ -29,7 +29,8 @@ export default function LoginScreen({ v }) {
       const currentUser = {
         name: res.data.nickname,
         firstName: res.data.nickname,
-        studentId: res.data.studentId || ''
+        studentId: res.data.studentId || '',
+        userId: res.data.userId
       };
 
       v.completeLogin(currentUser, isAdminMode);

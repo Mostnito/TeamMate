@@ -209,12 +209,12 @@ export default function deriveVals(state, actions) {
   const hasTeam = groupsData.some((g) => g.members.some((m) => m.studentId === s.currentUser.studentId || m.name === s.currentUser.name));
 
   return {
-    showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel,
+    showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel, currentUserId: s.currentUser.userId,
     goSettings: actions.goSettings, settingsIconColor: settingsActive ? '#2563EB' : '#6B7280', settingsTextColor: settingsActive ? '#2563EB' : '#374151', handleLogout: actions.handleLogout,
     isLogin, loginEmail: s.loginEmail, loginPassword: s.loginPassword,
     loginPwType: s.loginShowPw ? 'text' : 'password', loginPwIcon: s.loginShowPw ? 'ซ่อน' : 'แสดง',
     onLoginEmailChange: actions.onLoginEmailChange, onLoginPasswordChange: actions.onLoginPasswordChange, toggleLoginPw: actions.toggleLoginPw,
-    completeLogin: actions.completeLogin, goSignup: actions.go('signup'),
+    completeLogin: actions.completeLogin, updateCurrentUser: actions.updateCurrentUser, goSignup: actions.go('signup'),
     isSignup, su: s.su, toggleGender: actions.toggleGender, toggleSkill: actions.toggleSkill, showSkillOtherInput: s.su.skills.includes('อื่น ๆ'), onSuSkillOther: actions.onSuSkillOther,
     resetSu: actions.resetSu, goLogin: actions.go('login'),
     onSuFirstName: actions.onSu('firstName'), onSuLastName: actions.onSu('lastName'), onSuNickname: actions.onSu('nickname'), onSuStudentId: actions.onSu('studentId'),
@@ -264,14 +264,7 @@ export default function deriveVals(state, actions) {
     isAssignmentDetail: s.screen === 'assignmentDetail', selectedAssignment, submitNote: s.submitNote, onSubmitNoteChange: actions.onSubmitNoteChange,
     simulateUpload: actions.simulateUpload, handleSubmitAssignment: actions.handleSubmitAssignment, submitButtonLabel: s.submitButtonLabel,
     isCalendar: s.screen === 'calendar', calendarLabel, weekdayLabels, calendarCells, upcomingEvents, prevMonth: actions.prevMonth, nextMonth: actions.nextMonth,
-    isSettings: s.screen === 'settings', settingsProfile: s.settingsProfile, notificationToggles, saveSettingsLabel: s.saveSettingsLabel, saveSettings: actions.saveSettings,
-    onSettingsFullName: actions.onSettingsProfile('fullName'), onSettingsNickname: actions.onSettingsProfile('nickname'), onSettingsEmail: actions.onSettingsProfile('email'),
-    onSettingsPassword: actions.onSettingsProfile('password'),
-    settingsSkillOptions: s.skillOptions.map((label) => ({
-      label, onClick: actions.toggleSettingsSkill(label),
-      bg: s.settingsProfile.skills.includes(label) ? '#2563EB' : '#F3F4F6', color: s.settingsProfile.skills.includes(label) ? '#fff' : '#6B7280'
-    })),
-    showSettingsSkillOtherInput: s.settingsProfile.skills.includes('อื่น ๆ'), onSettingsSkillOther: actions.onSettingsSkillOther,
+    isSettings: s.screen === 'settings', notificationToggles,
     isLeaderboard: s.screen === 'leaderboard', leaderboardPeriods, leaderboardPodium, leaderboardRest,
     isAdmin: s.screen === 'admin', adminStats, adminTabs,
     adminTabModeration: s.adminTab === 'moderation', adminTabErrors: s.adminTab === 'errors', adminTabSecurity: s.adminTab === 'security',

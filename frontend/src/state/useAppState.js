@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   initialGroupsData, initialTasks,
-  initialCalendarEvents, initialAdminUsersList, initialModerationQueue, skillOptionsList
+  initialCalendarEvents, initialAdminUsersList, initialModerationQueue
 } from '../data/seedData.js';
 
 const initialState = {
@@ -34,10 +34,7 @@ const initialState = {
   submissions: [],
   submitButtonLabel: 'ส่งงาน',
   calYear: 2026, calMonth: 2,
-  skillOptions: [...skillOptionsList],
-  settingsProfile: { fullName: 'สมชาย วิลิ', nickname: 'อาย', email: 'somchai@example.com', password: '6012345678', skills: ['Frontend', 'UI/UX Design'], skillOther: '' },
   notifSettings: { newTask: true, chatMsg: true, deadline: true, deadlineReminder: false },
-  saveSettingsLabel: 'บันทึกการตั้งค่า',
   adminFilter: 'all',
   adminTab: 'moderation',
   evaluations: {},
@@ -54,23 +51,10 @@ const initialState = {
   taskForm: { title: '', description: '', assigneeIdx: 0, dueDate: '' },
   calendarEvents: initialCalendarEvents,
   adminUsersList: initialAdminUsersList,
-  currentUser: { name: '', firstName: '', studentId: '' },
+  currentUser: { name: '', firstName: '', studentId: '', userId: null },
   moderationQueue: initialModerationQueue,
   groupsData: initialGroupsData
 };
-
-// "อื่น ๆ" resolves to a real skill name and (if new) grows the shared skill list,
-// mirroring an upsert into the `skills` lookup table instead of storing free text.
-function resolveSkills(skills, skillOther, skillOptions) {
-  if (!skills.includes('อื่น ๆ')) return { skills, skillOptions };
-  const custom = (skillOther || '').trim();
-  if (!custom) return { skills: skills.filter((x) => x !== 'อื่น ๆ'), skillOptions };
-  const existing = skillOptions.find((s) => s !== 'อื่น ๆ' && s.toLowerCase() === custom.toLowerCase());
-  const finalName = existing || custom;
-  const newSkillOptions = existing ? skillOptions : [...skillOptions.slice(0, -1), finalName, 'อื่น ๆ'];
-  const newSkills = skills.map((s) => (s === 'อื่น ๆ' ? finalName : s));
-  return { skills: newSkills, skillOptions: newSkillOptions };
-}
 
 export default function useAppState() {
   const [state, setState] = useState(initialState);
@@ -93,6 +77,8 @@ export default function useAppState() {
   const completeLogin = (currentUser, isAdminMode) => setState((s) => ({
     ...s, screen: isAdminMode ? 'admin' : 'dashboard', isAdminMode, currentUser
   }));
+
+  const updateCurrentUser = (patch) => setState((s) => ({ ...s, currentUser: { ...s.currentUser, ...patch } }));
 
   const onSu = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, su: { ...s.su, [field]: v } })); };
   const onSuSkillOther = (e) => { const v = e.target.value; setState((s) => ({ ...s, su: { ...s.su, skillOther: v } })); };
@@ -309,21 +295,7 @@ export default function useAppState() {
   const prevMonth = () => setState((s) => { let m = s.calMonth - 1, y = s.calYear; if (m < 0) { m = 11; y--; } return { ...s, calMonth: m, calYear: y }; });
   const nextMonth = () => setState((s) => { let m = s.calMonth + 1, y = s.calYear; if (m > 11) { m = 0; y++; } return { ...s, calMonth: m, calYear: y }; });
 
-  const onSettingsProfile = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, settingsProfile: { ...s.settingsProfile, [field]: v } })); };
-  const onSettingsSkillOther = (e) => { const v = e.target.value; setState((s) => ({ ...s, settingsProfile: { ...s.settingsProfile, skillOther: v } })); };
-  const toggleSettingsSkill = (skill) => () => setState((s) => {
-    const has = s.settingsProfile.skills.includes(skill);
-    return { ...s, settingsProfile: { ...s.settingsProfile, skills: has ? s.settingsProfile.skills.filter((x) => x !== skill) : [...s.settingsProfile.skills, skill] } };
-  });
   const toggleNotif = (key) => () => setState((s) => ({ ...s, notifSettings: { ...s.notifSettings, [key]: !s.notifSettings[key] } }));
-  const saveSettings = () => {
-    setState((s) => {
-      const { skills, skillOptions } = resolveSkills(s.settingsProfile.skills, s.settingsProfile.skillOther, s.skillOptions);
-      return { ...s, skillOptions, settingsProfile: { ...s.settingsProfile, skills, skillOther: '' }, saveSettingsLabel: 'บันทึกแล้ว ✓' };
-    });
-    setTimeout(() => setState((s) => ({ ...s, saveSettingsLabel: 'บันทึกการตั้งค่า' })), 1600);
-    notify('success', 'บันทึกการตั้งค่าแล้ว');
-  };
 
   const setAdminFilter = (f) => () => setState((s) => ({ ...s, adminFilter: f }));
   const setAdminTab = (t) => () => setState((s) => ({ ...s, adminTab: t }));
@@ -362,7 +334,7 @@ export default function useAppState() {
 
   const actions = {
     notify, stopPropagation, go, goSettings,
-    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin,
+    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser,
     onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
     onCg, handleCreateGroup, onJoinDigit, handleJoinGroup, copyCode,
     openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, setTeamTab,
@@ -373,7 +345,7 @@ export default function useAppState() {
     openTask, openAssignmentDetail, setAssignmentFilter, setAssignmentView, addAssignment, addCalendarEvent,
     simulateUpload, removeSubmission, onSubmitNoteChange, handleSubmitAssignment,
     prevMonth, nextMonth,
-    onSettingsProfile, onSettingsSkillOther, toggleSettingsSkill, toggleNotif, saveSettings,
+    toggleNotif,
     setAdminFilter, setAdminTab, onAdminProfile, handleLogout, onPolicy, toggleAdminNotif,
     toggleAdminUserRole, addAdminUser, saveAdminSettings, resolveModeration
   };
