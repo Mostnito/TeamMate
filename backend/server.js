@@ -161,6 +161,20 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+app.get('/api/check', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT user_id, nickname, student_id, system_role FROM users WHERE user_id = $1', [req.user.userId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
+        }
+        const user = result.rows[0];
+        res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role });
+    } catch (err) {
+        console.error('Error fetching current user:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 
 //Get Gender
 app.get('/api/gender', async (req, res) =>{

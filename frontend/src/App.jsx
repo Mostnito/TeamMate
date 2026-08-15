@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -32,6 +34,34 @@ import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 export default function App() {
   const { state, actions } = useAppState();
   const v = deriveVals(state, actions);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsCheckingSession(false);
+      return;
+    }
+    const controller = new AbortController();
+    axios.get('/api/check', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
+      .then((res) => {
+        const isAdminMode = res.data.role === 'admin';
+        const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '' };
+        actions.completeLogin(currentUser, isAdminMode);
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+        localStorage.removeItem('token');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsCheckingSession(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  if (isCheckingSession) {
+    return <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#EFF6FF', color: '#6B7280', fontSize: 13.5 }}>กำลังโหลด...</div>;
+  }
 
   return (
     <>
