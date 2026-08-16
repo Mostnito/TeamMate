@@ -34,10 +34,6 @@ export default function TeamsScreen({ v }) {
     return () => { cancelled = true; };
   }, []);
 
-  const handleOpen = () => {
-    toast.info('หน้ารายละเอียดทีมยังไม่พร้อมใช้งาน');
-  };
-
   return (
     <div style={{ padding: '26px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
@@ -64,7 +60,7 @@ export default function TeamsScreen({ v }) {
                 </div>
                 <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 10 }}>{g.subjectCode}</div>
                 <div style={{ fontSize: 11.5, color: '#6B7280', marginBottom: 12 }}>👥 {g.memberCount} สมาชิก &nbsp;·&nbsp; ☑ 0 งาน</div>
-                <button onClick={handleOpen} style={{ ...btnGhostBlue, width: '100%', padding: 9 }}>ดูและเลือกทีม</button>
+                <button onClick={v.openTeam(g.groupId)} style={{ ...btnGhostBlue, width: '100%', padding: 9 }}>ดูและเลือกทีม</button>
               </div>
             );
           })}

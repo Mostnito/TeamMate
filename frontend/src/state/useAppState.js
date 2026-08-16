@@ -15,6 +15,8 @@ const initialState = {
   copyLabel: 'คัดลอก',
   selectedGroupId: 'A',
   teamTab: 'overview',
+  teamId: null,
+  selectedTaskId: null,
   chatInput: '',
   chatByGroup: {
     100001: [
@@ -117,7 +119,22 @@ export default function useAppState() {
   const goProjects = () => setState((s) => ({ ...s, screen: 'projects' }));
   const goJoinGroup = () => setState((s) => ({ ...s, screen: 'joinGroup', joinDigits: ['', '', '', '', '', ''] }));
   const openProjectTasks = (groupId) => () => setState((s) => ({ ...s, selectedGroupId: groupId, teamTab: 'tasks', screen: 'timeline' }));
-  const setTeamTab = (tab) => () => setState((s) => ({ ...s, teamTab: tab, screen: tab === 'chat' ? 'chat' : (tab === 'tasks' ? 'timeline' : (tab === 'progress' ? 'progress' : 'teamDetail')) }));
+
+  // TeamDetailScreen is the sole consumer of setTeamTab (real teams only, wired to real APIs).
+  // Chat/Progress have no backend yet; Evaluation is rendered inline as a placeholder instead of navigating.
+  const setTeamTab = (tab) => () => {
+    if (tab === 'chat' || tab === 'progress') {
+      toast.info('ฟีเจอร์นี้ยังไม่เปิดใช้งาน');
+      return;
+    }
+    setState((s) => ({ ...s, teamTab: tab, screen: tab === 'tasks' ? 'teamTasks' : 'teamDetail' }));
+  };
+
+  // real team navigation (Phase 1) - fully separate from the mock selectedGroupId/groupsData system above
+  const openTeam = (groupId) => () => setState((s) => ({ ...s, teamId: groupId, teamTab: 'overview', screen: 'teamDetail' }));
+  const goTeamTasks = () => setState((s) => ({ ...s, screen: 'teamTasks' }));
+  const openTaskDetail = (taskId) => () => setState((s) => ({ ...s, selectedTaskId: taskId, screen: 'taskDetail' }));
+  const backToTeamDetail = () => setState((s) => ({ ...s, screen: 'teamDetail', teamTab: 'overview' }));
 
   const getEvalEntry = (groupCode, studentId, s) => {
     const key = groupCode + '|' + studentId;
@@ -305,6 +322,7 @@ export default function useAppState() {
     onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
     onGroupCreated, onJoinDigit, onGroupJoined, copyCode,
     openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, setTeamTab,
+    openTeam, goTeamTasks, openTaskDetail, backToTeamDetail,
     getEvalEntry, setEvalRating, setEvalNote, setLeaderboardPeriod,
     saveEvaluation, exportEvaluation,
     onChatInputChange, onChatKeyDown, sendChat,

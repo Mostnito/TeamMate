@@ -56,7 +56,7 @@ export default function deriveVals(state, actions) {
     { key: 'calendar', label: 'ปฏิทิน', icon: '▦' },
     { key: 'leaderboard', label: 'อันดับคะแนน', icon: '★' }
   ];
-  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', leaderboard: 'leaderboard' };
+  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', leaderboard: 'leaderboard', teamTasks: 'teams', taskDetail: 'teams' };
 
   const leaderboardPeriodDefs = [
     { key: 'all', label: 'ทั้งหมด' }, { key: 'monthly', label: 'รายเดือน' }, { key: 'weekly', label: 'รายสัปดาห์' }, { key: 'daily', label: 'รายวัน' }
@@ -233,6 +233,9 @@ export default function deriveVals(state, actions) {
     dashNoUpcomingTasks: allTasksFlat.filter((t) => t.status !== 'completed').length === 0,
     isDashboardEmpty: s.screen === 'dashboard' && !hasTeam,
     isTeams: s.screen === 'teams', groups, isJoinGroup: s.screen === 'joinGroup', goJoinGroup: actions.goJoinGroup,
+    openTeam: actions.openTeam, teamId: s.teamId,
+    isTeamTasks: s.screen === 'teamTasks', goTeamTasks: actions.goTeamTasks,
+    isTaskDetail: s.screen === 'taskDetail', selectedTaskId: s.selectedTaskId, openTaskDetail: actions.openTaskDetail, backToTeamDetail: actions.backToTeamDetail,
     isProjects: s.screen === 'projects',
     projectCards: groupsData.map((g) => {
       const groupTasks = s.tasks.filter((t) => t.groupId === g.id);

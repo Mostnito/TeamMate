@@ -32,6 +32,7 @@ CREATE TABLE users (
     user_id       SERIAL PRIMARY KEY,
     gender_id     INTEGER REFERENCES gender(gender_id) ON DELETE SET NULL,
     system_role   user_role NOT NULL DEFAULT 'student',
+    avatar_path   VARCHAR(255),
 	student_id    VARCHAR(20) UNIQUE,
     firstname     VARCHAR(100) NOT NULL,
     lastname      VARCHAR(100) NOT NULL,
