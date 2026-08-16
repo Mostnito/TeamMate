@@ -386,6 +386,139 @@ app.post('/api/skill', async (req, res) => {
     }
 });
 
+//Create group
+app.post('/api/group/create', authenticateToken, async (req, res) => {
+    const { subjectCode, subjectName, advisorName } = req.body;
+
+    if (!subjectCode || !subjectName || !advisorName) {
+        return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    }
+
+    const client = await pool.connect();
+    try {
+        const MAX_ATTEMPTS = 5;
+        let group;
+
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            const groupCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+            try {
+                await client.query('BEGIN');
+
+                const groupResult = await client.query(
+                    `INSERT INTO groups (group_code, subject_code, subject_name, advisor_name, created_by)
+                     VALUES ($1, $2, $3, $4, $5) RETURNING group_id, group_code, subject_code, subject_name, advisor_name, created_at`,
+                    [groupCode, subjectCode, subjectName, advisorName, req.user.userId]
+                );
+                group = groupResult.rows[0];
+
+                await client.query(
+                    `INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, 'leader')`,
+                    [group.group_id, req.user.userId]
+                );
+
+                await client.query('COMMIT');
+                break;
+            } catch (err) {
+                await client.query('ROLLBACK');
+                if (err.code === '23505' && attempt < MAX_ATTEMPTS) {
+                    continue; // group_code collision
+                }
+                throw err;
+            }
+        }
+
+        console.log('Group created successfully:', group.group_id);
+        res.status(201).json({
+            groupId: group.group_id,
+            groupCode: group.group_code,
+            subjectCode: group.subject_code,
+            subjectName: group.subject_name,
+            advisorName: group.advisor_name,
+            message: 'สร้างกลุ่มสำเร็จ'
+        });
+    } catch (err) {
+        console.error('Error creating group:', err);
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+        }
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    } finally {
+        client.release();
+    }
+});
+
+//Join group
+app.post('/api/group/join', authenticateToken, async (req, res) => {
+    const { groupCode } = req.body;
+
+    if (!groupCode || groupCode.length !== 6) {
+        return res.status(400).json({ error: 'กรุณากรอกรหัสให้ครบ 6 หลัก' });
+    }
+
+    try {
+        const groupResult = await pool.query(
+            'SELECT group_id, group_code, subject_code, subject_name FROM groups WHERE group_code = $1',
+            [groupCode.toUpperCase()]
+        );
+        if (groupResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบรหัสทีมนี้ กรุณาตรวจสอบอีกครั้ง' });
+        }
+        const group = groupResult.rows[0];
+
+        const memberCheck = await pool.query(
+            'SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2',
+            [group.group_id, req.user.userId]
+        );
+        if (memberCheck.rows.length) {
+            return res.status(409).json({ error: 'คุณเป็นสมาชิกกลุ่มนี้อยู่แล้ว' });
+        }
+
+        await pool.query(
+            `INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, 'member')`,
+            [group.group_id, req.user.userId]
+        );
+
+        console.log('User joined group successfully:', req.user.userId, '->', group.group_id);
+        res.status(201).json({
+            groupId: group.group_id,
+            groupCode: group.group_code,
+            subjectCode: group.subject_code,
+            subjectName: group.subject_name,
+            message: 'เข้าร่วมกลุ่มสำเร็จ'
+        });
+    } catch (err) {
+        console.error('Error joining group:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+app.get('/api/group/data', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT g.group_id, g.group_code, g.subject_code, g.subject_name, g.advisor_name, gm.role,
+                    (SELECT COUNT(*)::int FROM group_members gm2 WHERE gm2.group_id = g.group_id) AS member_count
+             FROM group_members gm
+             JOIN groups g ON g.group_id = gm.group_id
+             WHERE gm.user_id = $1
+             ORDER BY g.created_at DESC`,
+            [req.user.userId]
+        );
+
+        res.json(result.rows.map((r) => ({
+            groupId: r.group_id,
+            groupCode: r.group_code,
+            subjectCode: r.subject_code,
+            subjectName: r.subject_name,
+            advisorName: r.advisor_name,
+            role: r.role,
+            memberCount: r.member_count
+        })));
+    } catch (err) {
+        console.error('Error fetching groups:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 
 
 

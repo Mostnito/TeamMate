@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import logo from '../assets/teammate-logo.svg';
+import logo from '../assets/teammate-logo.png';
 import { label, input, btnPrimary } from '../styles/common.js';
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;

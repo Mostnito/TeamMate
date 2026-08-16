@@ -221,9 +221,8 @@ export default function deriveVals(state, actions) {
     onSuBirthdate: actions.onSu('birthdate'), onSuEmail: actions.onSu('email'), onSuPhone: actions.onSu('phone'), onSuPassword: actions.onSu('password'), onSuConfirmPassword: actions.onSu('confirmPassword'),
     isDashboard: s.screen === 'dashboard' && hasTeam,
     firstNameShort: s.currentUser.firstName || currentUserName.split(' ')[0],
-    goCreateGroup: actions.go('createGroup'), joinDigits, joinError: s.joinError, handleJoinGroup: actions.handleJoinGroup,
-    isCreateGroup: s.screen === 'createGroup', cg: s.cg, cgError: s.cgError, handleCreateGroup: actions.handleCreateGroup, goDashboard: actions.go('dashboard'),
-    onCgCode: actions.onCg('code'), onCgName: actions.onCg('name'), onCgTeacher: actions.onCg('teacher'),
+    goCreateGroup: actions.go('createGroup'), joinDigits, onGroupJoined: actions.onGroupJoined,
+    isCreateGroup: s.screen === 'createGroup', onGroupCreated: actions.onGroupCreated, goDashboard: actions.go('dashboard'),
     isGroupCreated: s.screen === 'groupCreated', newGroupCode: s.newGroupCode, copyLabel: s.copyLabel, copyCode: actions.copyCode, goTeams: actions.go('teams'),
     dashStats: {
       teamCount: groupsData.length,

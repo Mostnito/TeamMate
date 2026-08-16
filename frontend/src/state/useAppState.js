@@ -10,10 +10,7 @@ const initialState = {
   isAdminMode: false,
   loginEmail: '', loginPassword: '', loginShowPw: false,
   su: { firstName: '', lastName: '', nickname: '', studentId: '', gender: '', birthdate: '', email: '', phone: '', skills: [], skillOther: '', password: '', confirmPassword: '' },
-  cg: { code: '', name: '', teacher: '' },
-  cgError: '',
   joinDigits: ['', '', '', '', '', ''],
-  joinError: '',
   newGroupCode: '',
   copyLabel: 'คัดลอก',
   selectedGroupId: 'A',
@@ -94,48 +91,18 @@ export default function useAppState() {
     ...s, su: { firstName: '', lastName: '', nickname: '', studentId: '', gender: '', birthdate: '', email: '', phone: '', skills: [], skillOther: '', password: '', confirmPassword: '' }
   }));
 
-  const onCg = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, cg: { ...s.cg, [field]: v } })); };
-
-  const handleCreateGroup = () => {
-    const cg = state.cg;
-    if (!cg.code || !cg.name || !cg.teacher) { setState((s) => ({ ...s, cgError: 'กรุณากรอกข้อมูลให้ครบถ้วน' })); return; }
-    const letter = String.fromCharCode(65 + state.groupsData.length);
-    const joinCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const me = state.currentUser;
-    const myName = me.name || 'สมชาย วิลิ';
-    const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
-    const newGroup = {
-      id: letter, letter, code: joinCode, subjectCode: cg.code, name: cg.name, teacher: 'อ.' + cg.teacher, subtitle: cg.name,
-      memberCount: 1, taskCount: 0, tint: '#EFF6FF', accent: '#2563EB',
-      members: [{ name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', isLeader: true, skills: [] }]
-    };
-    setState((s) => ({ ...s, groupsData: [...s.groupsData, newGroup], newGroupCode: joinCode, cgError: '', cg: { code: '', name: '', teacher: '' }, screen: 'groupCreated' }));
-    notify('success', 'สร้างกลุ่มสำเร็จ');
-  };
+  // actual creation happens via /api/group/create directly in CreateGroupScreen.jsx;
+  // this just applies the result to central state once that call succeeds
+  const onGroupCreated = (groupCode) => setState((s) => ({ ...s, newGroupCode: groupCode, screen: 'groupCreated' }));
 
   const onJoinDigit = (i) => (e) => {
     const v = e.target.value.slice(-1);
-    setState((s) => { const d = [...s.joinDigits]; d[i] = v; return { ...s, joinDigits: d, joinError: '' }; });
+    setState((s) => { const d = [...s.joinDigits]; d[i] = v; return { ...s, joinDigits: d }; });
   };
 
-  const handleJoinGroup = () => {
-    const code = state.joinDigits.join('');
-    if (code.length < 6) { setState((s) => ({ ...s, joinError: 'กรุณากรอกรหัสให้ครบ 6 หลัก' })); return; }
-    const groupsData = state.groupsData;
-    const group = groupsData.find((g) => g.code.toUpperCase() === code.toUpperCase());
-    if (!group) { setState((s) => ({ ...s, joinError: 'ไม่พบรหัสทีมนี้ กรุณาตรวจสอบอีกครั้ง' })); return; }
-    const me = state.currentUser;
-    const myName = me.name || 'สมชาย วิลิ';
-    const alreadyMember = group.members.some((m) => (me.studentId && m.studentId === me.studentId) || m.name === myName);
-    let newGroupsData = groupsData;
-    if (!alreadyMember) {
-      const myInitials = myName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
-      const newMember = { name: myName, studentId: me.studentId || '', initials: myInitials, tint: '#EFF6FF', accent: '#2563EB', skills: [] };
-      newGroupsData = groupsData.map((g) => g.id === group.id ? { ...g, members: [...g.members, newMember], memberCount: g.members.length + 1 } : g);
-    }
-    setState((s) => ({ ...s, groupsData: newGroupsData, selectedGroupId: group.id, joinError: '', joinDigits: ['', '', '', '', '', ''], screen: 'teams' }));
-    notify('success', 'เข้าร่วมกลุ่มสำเร็จ');
-  };
+  // actual join happens via /api/group/join directly in JoinGroupScreen.jsx / DashboardEmptyScreen.jsx;
+  // this just applies the result to central state once that call succeeds
+  const onGroupJoined = () => setState((s) => ({ ...s, joinDigits: ['', '', '', '', '', ''], screen: 'teams' }));
 
   const copyCode = () => {
     setState((s) => {
@@ -148,7 +115,7 @@ export default function useAppState() {
   const openGroup = (id) => () => setState((s) => ({ ...s, selectedGroupId: id, screen: 'teamDetail', teamTab: 'overview' }));
   const goTeamDetail = () => setState((s) => ({ ...s, screen: 'teamDetail', teamTab: 'overview' }));
   const goProjects = () => setState((s) => ({ ...s, screen: 'projects' }));
-  const goJoinGroup = () => setState((s) => ({ ...s, screen: 'joinGroup', joinError: '', joinDigits: ['', '', '', '', '', ''] }));
+  const goJoinGroup = () => setState((s) => ({ ...s, screen: 'joinGroup', joinDigits: ['', '', '', '', '', ''] }));
   const openProjectTasks = (groupId) => () => setState((s) => ({ ...s, selectedGroupId: groupId, teamTab: 'tasks', screen: 'timeline' }));
   const setTeamTab = (tab) => () => setState((s) => ({ ...s, teamTab: tab, screen: tab === 'chat' ? 'chat' : (tab === 'tasks' ? 'timeline' : (tab === 'progress' ? 'progress' : 'teamDetail')) }));
 
@@ -336,7 +303,7 @@ export default function useAppState() {
     notify, stopPropagation, go, goSettings,
     onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser,
     onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
-    onCg, handleCreateGroup, onJoinDigit, handleJoinGroup, copyCode,
+    onGroupCreated, onJoinDigit, onGroupJoined, copyCode,
     openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, setTeamTab,
     getEvalEntry, setEvalRating, setEvalNote, setLeaderboardPeriod,
     saveEvaluation, exportEvaluation,

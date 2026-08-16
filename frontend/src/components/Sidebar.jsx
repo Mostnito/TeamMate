@@ -1,4 +1,4 @@
-import logo from '../assets/teammate-logo.svg';
+import logo from '../assets/teammate-logo.png';
 
 export default function Sidebar({ v }) {
   return (
