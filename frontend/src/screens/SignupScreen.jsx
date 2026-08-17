@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { label, input, btnPrimary } from '../styles/common.js';
+import { IoMdArrowBack } from 'react-icons/io';
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
@@ -107,7 +108,7 @@ export default function SignupScreen({ v }) {
   return (
     <div style={{ minHeight: '100%' }}>
       <div style={{ height: 56, background: '#2563EB', display: 'flex', alignItems: 'center', padding: '0 24px', gap: 10, color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer' }} onClick={v.goLogin}>
-        <span>←</span><span>สมัครสมาชิก TeamMate</span>
+        <IoMdArrowBack size={16} /><span>สมัครสมาชิก TeamMate</span>
       </div>
       <div style={{ maxWidth: 760, margin: '28px auto', background: '#fff', borderRadius: 16, padding: 32, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px' }}>

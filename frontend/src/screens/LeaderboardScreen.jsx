@@ -1,3 +1,5 @@
+import { IoMdTrophy } from 'react-icons/io';
+
 export default function LeaderboardScreen({ v }) {
   return (
     <div style={{ padding: '22px 28px' }}>
@@ -17,7 +19,7 @@ export default function LeaderboardScreen({ v }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ position: 'relative', width: 38, height: 38, borderRadius: '50%', background: row.tint, color: row.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
                   {row.initials}
-                  {row.isFirst && <span style={{ position: 'absolute', top: -8, right: -6, fontSize: 14 }}>👑</span>}
+                  {row.isFirst && <span style={{ position: 'absolute', top: -8, right: -6, color: '#D97706' }}><IoMdTrophy size={16} /></span>}
                 </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{row.name}</div>

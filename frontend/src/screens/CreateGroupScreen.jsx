@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { label, input, btnPrimary, btnSecondary } from '../styles/common.js';
+import { IoMdArrowBack } from 'react-icons/io';
 
 export default function CreateGroupScreen({ v }) {
   const [form, setForm] = useState({ subjectCode: '', subjectName: '', advisorName: '' });
@@ -34,7 +35,7 @@ export default function CreateGroupScreen({ v }) {
   return (
     <div style={{ padding: '26px 28px', minHeight: 'calc(100% - 52px)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer', color: '#374151', fontWeight: 600, fontSize: 14 }} onClick={v.goDashboard}>
-        <span>←</span><span>สร้างกลุ่มเรียน</span>
+        <IoMdArrowBack size={16} /><span>สร้างกลุ่มเรียน</span>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ maxWidth: 460, width: '100%', background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 6px 18px rgba(0,0,0,0.05)' }}>

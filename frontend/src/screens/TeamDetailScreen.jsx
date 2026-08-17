@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { card, cardSm, btnGhostBlue } from '../styles/common.js';
+import { card, cardSm, btnGhostBlue, btnPrimary, btnSecondary, label, input } from '../styles/common.js';
+import { IoMdArrowBack, IoMdAdd } from 'react-icons/io';
 import CreateTaskModal from '../components/CreateTaskModal.jsx';
 
 const BOARD_COLUMNS = [
-  { key: 'pending', label: 'To Do', color: '#6B7280' },
-  { key: 'in_progress', label: 'In Progress', color: '#F59E0B' },
-  { key: 'completed', label: 'Done', color: '#16A34A' }
+  { key: 'pending', label: 'สิ่งที่ต้องทำ', color: '#6B7280' },
+  { key: 'in_progress', label: 'กำลังดำเนินการ', color: '#F59E0B' },
+  { key: 'under_review', label: 'รอตรวจ', color: '#2563EB' },
+  { key: 'completed', label: 'เสร็จสิ้น', color: '#16A34A' }
 ];
 
 export default function TeamDetailScreen({ v }) {
@@ -18,6 +20,9 @@ export default function TeamDetailScreen({ v }) {
   const [boardModalOpen, setBoardModalOpen] = useState(false);
   const [boardModalColumn, setBoardModalColumn] = useState('pending');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
 
   useEffect(() => {
     if (v.teamId == null) {
@@ -58,6 +63,44 @@ export default function TeamDetailScreen({ v }) {
   };
 
   const isLeader = members.some((m) => m.userId === v.currentUserId && m.role === 'leader');
+
+  const handleKickMember = (userId, name) => {
+    if (!window.confirm(`ต้องการเตะ ${name} ออกจากกลุ่มใช่หรือไม่? งานที่มอบหมายให้จะถูกยกเลิกการมอบหมาย`)) return;
+    const token = localStorage.getItem('token');
+    axios.delete(`/api/group/${v.teamId}/members/${userId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        toast.success(res.data.message || 'เตะสมาชิกออกจากกลุ่มสำเร็จ');
+        setMembers((prev) => prev.filter((m) => m.userId !== userId));
+        refetchTasks();
+      })
+      .catch((err) => toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'));
+  };
+
+  const handleDeleteGroup = () => {
+    const token = localStorage.getItem('token');
+    setIsDeletingGroup(true);
+    axios.delete(`/api/group/${v.teamId}`, {
+      data: { confirmCode: deleteConfirmInput },
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((res) => {
+        toast.success(res.data.message || 'ลบกลุ่มสำเร็จ');
+        v.goTeams();
+      })
+      .catch((err) => toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'))
+      .finally(() => setIsDeletingGroup(false));
+  };
+
+  const handleLeaveGroup = () => {
+    if (!window.confirm('ต้องการออกจากกลุ่มนี้ใช่หรือไม่? งานที่มอบหมายให้คุณจะถูกยกเลิกการมอบหมาย')) return;
+    const token = localStorage.getItem('token');
+    axios.delete(`/api/group/${v.teamId}/members/${v.currentUserId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        toast.success(res.data.message || 'ออกจากกลุ่มสำเร็จ');
+        v.goTeams();
+      })
+      .catch((err) => toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'));
+  };
 
   const handleMoveTask = (task, newStatus) => {
     if (task.status === newStatus) return;
@@ -119,15 +162,49 @@ export default function TeamDetailScreen({ v }) {
         onClose={() => setBoardModalOpen(false)}
         onSubmit={handleSubmitBoardTask}
       />
+      {deleteModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setDeleteModalOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 420, background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#DC2626', marginBottom: 10 }}>ลบกลุ่ม {groupInfo.subjectName}</div>
+            <div style={{ fontSize: 12.5, color: '#4B5A6E', lineHeight: 1.7, marginBottom: 16 }}>
+              การลบกลุ่มจะลบงาน ไฟล์แนบ และการส่งงานทั้งหมดในกลุ่มนี้อย่างถาวร <b>ไม่สามารถกู้คืนได้</b>
+            </div>
+            <div style={label}>พิมพ์รหัสวิชา "{groupInfo.subjectCode}" เพื่อยืนยัน</div>
+            <input value={deleteConfirmInput} onChange={(e) => setDeleteConfirmInput(e.target.value)} placeholder={groupInfo.subjectCode} style={input} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button onClick={() => { setDeleteModalOpen(false); setDeleteConfirmInput(''); }} disabled={isDeletingGroup} style={{ ...btnSecondary, flex: 1, padding: 11 }}>ยกเลิก</button>
+              <button
+                onClick={handleDeleteGroup}
+                disabled={isDeletingGroup || deleteConfirmInput !== groupInfo.subjectCode}
+                style={{
+                  flex: 2, padding: 11, border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                  background: deleteConfirmInput === groupInfo.subjectCode ? '#DC2626' : '#F3F4F6',
+                  color: deleteConfirmInput === groupInfo.subjectCode ? '#fff' : '#9CA3AF',
+                  cursor: isDeletingGroup || deleteConfirmInput !== groupInfo.subjectCode ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isDeletingGroup ? 'กำลังลบ...' : 'ลบกลุ่ม'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 600, fontSize: 13.5, marginBottom: 14, cursor: 'pointer' }} onClick={v.goTeams}>
-        <span>←</span><span>{groupInfo.subjectName}</span>
+        <IoMdArrowBack size={16} /><span>{groupInfo.subjectName}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 16, boxShadow: '0 6px 18px rgba(0,0,0,0.05)' }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{groupInfo.subjectCode} &nbsp;{groupInfo.subjectName}</div>
           <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>{groupInfo.advisorName}</div>
         </div>
-        <div style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 20 }}>👥 {groupInfo.memberCount} สมาชิก</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 20 }}>{groupInfo.memberCount} สมาชิก</div>
+          {isLeader ? (
+            <button onClick={() => setDeleteModalOpen(true)} style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>ลบกลุ่ม</button>
+          ) : (
+            <button onClick={handleLeaveGroup} style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>ออกจากกลุ่ม</button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 6, background: '#fff', borderRadius: 11, padding: 5, marginBottom: 18, width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
@@ -140,14 +217,19 @@ export default function TeamDetailScreen({ v }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
           {members.map((m) => (
             <div key={m.userId} style={cardSm}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                  {(m.firstName.charAt(0) + m.lastName.charAt(0)).toUpperCase()}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
+                    {(m.firstName.charAt(0) + m.lastName.charAt(0)).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{m.firstName} {m.lastName}</div>
+                    <div style={{ fontSize: 10.5, color: '#6B7280' }}>{m.studentId}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{m.firstName} {m.lastName}</div>
-                  <div style={{ fontSize: 10.5, color: '#6B7280' }}>{m.studentId}</div>
-                </div>
+                {isLeader && m.role !== 'leader' && (
+                  <span onClick={() => handleKickMember(m.userId, `${m.firstName} ${m.lastName}`)} style={{ fontSize: 10.5, color: '#DC2626', fontWeight: 600, cursor: 'pointer' }}>เตะออก</span>
+                )}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
                 {m.skills.map((sk) => (
@@ -155,9 +237,9 @@ export default function TeamDetailScreen({ v }) {
                 ))}
               </div>
               {m.role === 'leader' ? (
-                <span style={{ fontSize: 10.5, background: '#FEF3C7', color: '#B45309', padding: '4px 10px', borderRadius: 6, fontWeight: 700 }}>★ หัวหน้ากลุ่ม</span>
+                <span style={{ fontSize: 10.5, background: '#1a569e', color: '#fffffe', padding: '4px 10px', borderRadius: 6, fontWeight: 700 }}>หัวหน้ากลุ่ม</span>
               ) : (
-                <span style={{ fontSize: 10.5, background: '#F3F4F6', color: '#6B7280', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>สมาชิก</span>
+                <span style={{ fontSize: 10.5, background: '#dfebf5', color: '#1a569e', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>สมาชิก</span>
               )}
             </div>
           ))}
@@ -165,7 +247,7 @@ export default function TeamDetailScreen({ v }) {
       )}
 
       {v.teamTabBoard && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 18 }}>
           {boardColumns.map((col) => (
             <div
               key={col.key}
@@ -198,7 +280,7 @@ export default function TeamDetailScreen({ v }) {
                   </div>
                 ))}
                 {isLeader && (
-                  <div onClick={() => openBoardModal(col.key)} style={{ border: '1.5px dashed #E5E7EB', borderRadius: 10, padding: 10, textAlign: 'center', fontSize: 11.5, color: '#9CA3AF', cursor: 'pointer' }}>+ เพิ่ม Task</div>
+                  <div onClick={() => openBoardModal(col.key)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, border: '1.5px dashed #E5E7EB', borderRadius: 10, padding: 10, textAlign: 'center', fontSize: 11.5, color: '#9CA3AF', cursor: 'pointer' }}><IoMdAdd size={13} /> เพิ่ม Task</div>
                 )}
               </div>
             </div>

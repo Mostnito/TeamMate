@@ -1,5 +1,6 @@
 import { card, inputSm, btnPrimary, toggle, toggleKnob } from '../styles/common.js';
 import AvatarSlot from '../components/AvatarSlot.jsx';
+import { IoMdAdd } from 'react-icons/io';
 
 export default function AdminSettingsScreen({ v }) {
   return (
@@ -31,7 +32,7 @@ export default function AdminSettingsScreen({ v }) {
       <div style={{ ...card, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827' }}>สิทธิ์การเข้าถึง</div>
-          <button onClick={v.addAdminUser} style={{ background: '#EFF6FF', color: '#1D4ED8', border: 'none', padding: '7px 14px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มผู้ดูแล</button>
+          <button onClick={v.addAdminUser} style={{ background: '#EFF6FF', color: '#1D4ED8', border: 'none', padding: '7px 14px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><IoMdAdd size={13} /> เพิ่มผู้ดูแล</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {v.adminUsers.map((au, i) => (

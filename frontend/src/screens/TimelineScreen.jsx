@@ -1,13 +1,14 @@
 import { btnPrimary, statusPill } from '../styles/common.js';
+import { IoMdArrowBack, IoMdAdd } from 'react-icons/io';
 
 export default function TimelineScreen({ v }) {
   return (
     <div style={{ padding: '22px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 700, fontSize: 15, cursor: 'pointer' }} onClick={v.goTeamDetail}>
-          <span>←</span><span>งานที่ได้รับมอบหมาย</span>
+          <IoMdArrowBack size={16} /><span>งานที่ได้รับมอบหมาย</span>
         </div>
-        {v.isCurrentUserLeader && <button onClick={v.openAddTaskTimeline} style={btnPrimary}>+ เพิ่มงาน</button>}
+        {v.isCurrentUserLeader && <button onClick={v.openAddTaskTimeline} style={{ ...btnPrimary, display: 'flex', alignItems: 'center', gap: 4 }}><IoMdAdd size={14} /> เพิ่มงาน</button>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {v.timelineTasks.map((task) => (

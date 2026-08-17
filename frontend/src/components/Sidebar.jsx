@@ -1,4 +1,5 @@
 import logo from '../assets/teammate-logo.png';
+import { IoMdSettings, IoMdLogOut } from 'react-icons/io';
 
 export default function Sidebar({ v }) {
   return (
@@ -17,7 +18,7 @@ export default function Sidebar({ v }) {
             onClick={item.onClick}
             style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, background: item.active ? '#F3F8FF' : 'transparent' }}
           >
-            <span style={{ width: 20, textAlign: 'center', fontSize: 15, color: item.iconColor }}>{item.icon}</span>
+            <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><item.icon size={15} color={item.iconColor} /></span>
             <span style={{ color: item.textColor }}>{item.label}</span>
           </div>
         ))}
@@ -27,14 +28,14 @@ export default function Sidebar({ v }) {
           onClick={v.goSettings}
           style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, color: v.settingsTextColor }}
         >
-          <span style={{ width: 20, textAlign: 'center', fontSize: 15, color: v.settingsIconColor }}>⚙</span>
+          <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><IoMdSettings size={15} color={v.settingsIconColor} /></span>
           <span>ตั้งค่า</span>
         </div>
         <div
           onClick={v.handleLogout}
           style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, color: '#DC2626' }}
         >
-          <span style={{ width: 20, textAlign: 'center', fontSize: 15 }}>⎋</span>
+          <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><IoMdLogOut size={15} /></span>
           <span>ออกจากระบบ</span>
         </div>
       </div>

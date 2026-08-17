@@ -1,4 +1,5 @@
 import { btnPrimary, statusPill } from '../styles/common.js';
+import { IoMdAdd, IoMdCalendar } from 'react-icons/io';
 
 export default function AssignmentScreen({ v }) {
   return (
@@ -9,7 +10,7 @@ export default function AssignmentScreen({ v }) {
           <div onClick={v.setAssignmentViewList} style={{ padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: v.listViewBg, color: v.listViewColor }}>รายการ</div>
           <div onClick={v.setAssignmentViewKanban} style={{ padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: v.kanbanViewBg, color: v.kanbanViewColor }}>บอร์ด</div>
         </div>
-        {v.isCurrentUserLeaderAny && <button onClick={v.addAssignment} style={btnPrimary}>+ เพิ่ม Assignment</button>}
+        {v.isCurrentUserLeaderAny && <button onClick={v.addAssignment} style={{ ...btnPrimary, display: 'flex', alignItems: 'center', gap: 4 }}><IoMdAdd size={14} /> เพิ่ม Assignment</button>}
       </div>
       <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>ติดตามงานที่ได้รับมอบหมายและกำหนดส่ง</div>
 
@@ -50,7 +51,7 @@ export default function AssignmentScreen({ v }) {
                     <div style={{ fontSize: 10.5, color: '#6B7280', marginBottom: 8 }}>{kt.groupLabel}</div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 10.5, color: '#6B7280' }}>{kt.assignedTo || 'ทั้งทีม'}</span>
-                      <span style={{ fontSize: 10.5, color: '#6B7280' }}>📅 {kt.dueDate}</span>
+                      <span style={{ fontSize: 10.5, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}><IoMdCalendar size={12} /> {kt.dueDate}</span>
                     </div>
                   </div>
                 ))}

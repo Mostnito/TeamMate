@@ -1,8 +1,10 @@
+import { IoMdArrowBack, IoMdDocument } from 'react-icons/io';
+
 export default function ProgressScreen({ v }) {
   return (
     <div style={{ padding: '22px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 700, fontSize: 15, marginBottom: 18, cursor: 'pointer' }} onClick={v.goTeamDetail}>
-        <span>←</span><span>ความคืบหน้า</span>
+        <IoMdArrowBack size={16} /><span>ความคืบหน้า</span>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -34,7 +36,7 @@ export default function ProgressScreen({ v }) {
             {v.recentFiles.map((f) => (
               <div key={f.name} style={{ background: '#fff', borderRadius: 10, padding: '12px 16px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 15 }}>📄</span>
+                  <IoMdDocument size={15} />
                   <div>
                     <div style={{ fontSize: 12.5, color: '#111827', fontWeight: 600 }}>{f.name}</div>
                     <div style={{ fontSize: 10.5, color: '#6B7280' }}>{f.meta}</div>

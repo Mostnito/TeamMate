@@ -520,7 +520,8 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT g.group_id, g.group_code, g.subject_code, g.subject_name, g.advisor_name, gm.role,
-                    (SELECT COUNT(*)::int FROM group_members gm2 WHERE gm2.group_id = g.group_id) AS member_count
+                    (SELECT COUNT(*)::int FROM group_members gm2 WHERE gm2.group_id = g.group_id) AS member_count,
+                    (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id) AS task_count
              FROM group_members gm
              JOIN groups g ON g.group_id = gm.group_id
              WHERE gm.user_id = $1
@@ -535,7 +536,8 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
             subjectName: r.subject_name,
             advisorName: r.advisor_name,
             role: r.role,
-            memberCount: r.member_count
+            memberCount: r.member_count,
+            taskCount: r.task_count
         })));
     } catch (err) {
         console.error('Error fetching groups:', err);
@@ -581,6 +583,88 @@ app.get('/api/group/:id/members', authenticateToken, async (req, res) => {
     }
 });
 
+//Kick group member (leader only) - unassigns their tasks in this group too
+app.delete('/api/group/:id/members/:userId', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    const targetUserId = parseInt(req.params.userId, 10);
+    if (!Number.isInteger(groupId) || !Number.isInteger(targetUserId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+
+    const client = await pool.connect();
+    try {
+        const isSelf = req.user.userId === targetUserId;
+        const isLeaderCaller = await isGroupLeader(req.user.userId, groupId);
+        if (!isLeaderCaller && !isSelf) {
+            return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ทำรายการนี้' });
+        }
+
+        const memberResult = await pool.query('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, targetUserId]);
+        if (memberResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบสมาชิกนี้ในกลุ่ม' });
+        }
+        if (memberResult.rows[0].role === 'leader') {
+            return res.status(400).json({
+                error: isSelf ? 'คุณเป็นหัวหน้ากลุ่ม ไม่สามารถออกจากกลุ่มได้ กรุณาลบกลุ่มแทน' : 'ไม่สามารถเตะหัวหน้ากลุ่มออกได้'
+            });
+        }
+
+        await client.query('BEGIN');
+        await client.query('DELETE FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, targetUserId]);
+        await client.query('UPDATE tasks SET assigned_to = NULL WHERE group_id = $1 AND assigned_to = $2', [groupId, targetUserId]);
+        await client.query('COMMIT');
+
+        console.log(isSelf ? 'Member left group:' : 'Member kicked from group:', targetUserId, 'from', groupId);
+        res.json({ message: isSelf ? 'ออกจากกลุ่มสำเร็จ' : 'เตะสมาชิกออกจากกลุ่มสำเร็จ' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error removing member:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    } finally {
+        client.release();
+    }
+});
+
+//Delete group (leader only) - requires typing the subject code to confirm
+app.delete('/api/group/:id', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { confirmCode } = req.body;
+
+    try {
+        const groupResult = await pool.query('SELECT subject_code FROM groups WHERE group_id = $1', [groupId]);
+        if (groupResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบกลุ่มนี้' });
+        }
+
+        if (!(await isGroupLeader(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่ลบกลุ่มได้' });
+        }
+        if (!confirmCode || confirmCode !== groupResult.rows[0].subject_code) {
+            return res.status(400).json({ error: 'รหัสวิชายืนยันไม่ถูกต้อง' });
+        }
+
+        const attachmentsResult = await pool.query(
+            `SELECT ta.file_path FROM task_attachments ta
+             JOIN tasks t ON t.task_id = ta.task_id
+             WHERE t.group_id = $1`,
+            [groupId]
+        );
+
+        await pool.query('DELETE FROM groups WHERE group_id = $1', [groupId]);
+
+        attachmentsResult.rows.forEach((a) => fs.unlink(path.join(__dirname, a.file_path), () => {}));
+
+        console.log('Group deleted successfully:', groupId);
+        res.json({ message: 'ลบกลุ่มสำเร็จ' });
+    } catch (err) {
+        console.error('Error deleting group:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Get group tasks
 app.get('/api/group/:id/tasks', authenticateToken, async (req, res) => {
     const groupId = parseInt(req.params.id, 10);
@@ -619,7 +703,7 @@ app.get('/api/group/:id/tasks', authenticateToken, async (req, res) => {
 });
 
 //Create task
-const TASK_STATUS_VALUES = ['pending', 'in_progress', 'completed', 'overdue', 'cancelled'];
+const TASK_STATUS_VALUES = ['pending', 'in_progress', 'completed', 'overdue', 'cancelled', 'under_review'];
 
 // anchors a plain 'YYYY-MM-DD' date to UTC midnight so it round-trips correctly
 // regardless of the server's local timezone (due_date is TIMESTAMPTZ)
@@ -708,6 +792,14 @@ app.get('/api/task/:id', authenticateToken, async (req, res) => {
             'SELECT task_attachment_id, file_name, file_path, uploaded_by, uploaded_at FROM task_attachments WHERE task_id = $1 ORDER BY uploaded_at DESC',
             [taskId]
         );
+        const submissionResult = await pool.query(
+            'SELECT submitted_by, note, submitted_at FROM task_submissions WHERE task_id = $1',
+            [taskId]
+        );
+        const reviewsResult = await pool.query(
+            'SELECT task_review_id, reviewed_by, review_status, comment, reviewed_at FROM task_reviews WHERE task_id = $1 ORDER BY reviewed_at DESC',
+            [taskId]
+        );
 
         res.json({
             taskId: task.task_id,
@@ -727,6 +819,18 @@ app.get('/api/task/:id', authenticateToken, async (req, res) => {
                 filePath: a.file_path,
                 uploadedBy: a.uploaded_by,
                 uploadedAt: a.uploaded_at
+            })),
+            submission: submissionResult.rows.length ? {
+                submittedBy: submissionResult.rows[0].submitted_by,
+                note: submissionResult.rows[0].note,
+                submittedAt: submissionResult.rows[0].submitted_at
+            } : null,
+            reviews: reviewsResult.rows.map((r) => ({
+                reviewId: r.task_review_id,
+                reviewedBy: r.reviewed_by,
+                reviewStatus: r.review_status,
+                comment: r.comment,
+                reviewedAt: r.reviewed_at
             }))
         });
     } catch (err) {
@@ -829,14 +933,19 @@ app.post('/api/task/:id/attachments', authenticateToken, (req, res) => {
     }
 
     (async () => {
-        const taskResult = await pool.query('SELECT group_id FROM tasks WHERE task_id = $1', [taskId]);
+        const taskResult = await pool.query('SELECT group_id, assigned_to, status FROM tasks WHERE task_id = $1', [taskId]);
         if (taskResult.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบงานนี้' });
         }
-        const groupId = taskResult.rows[0].group_id;
+        const { group_id: groupId, assigned_to: assignedTo, status } = taskResult.rows[0];
 
-        if (!(await isGroupLeader(req.user.userId, groupId))) {
-            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่แนบไฟล์ได้' });
+        const isLeader = await isGroupLeader(req.user.userId, groupId);
+        const isAssignee = assignedTo != null && req.user.userId === assignedTo;
+        if (!isLeader && !isAssignee) {
+            return res.status(403).json({ error: 'คุณไม่มีสิทธิ์แนบไฟล์ในงานนี้' });
+        }
+        if (isAssignee && !isLeader && status === 'pending') {
+            return res.status(400).json({ error: 'กรุณากดเริ่มดำเนินการก่อนจึงจะแนบไฟล์ส่งงานได้' });
         }
 
         uploadTaskAttachment.single('file')(req, res, async (err) => {
@@ -894,16 +1003,18 @@ app.delete('/api/task/:id/attachments/:attachmentId', authenticateToken, async (
         }
         const groupId = taskResult.rows[0].group_id;
 
-        if (!(await isGroupLeader(req.user.userId, groupId))) {
-            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่ลบไฟล์ได้' });
-        }
-
         const attachmentResult = await pool.query(
-            'SELECT file_path FROM task_attachments WHERE task_attachment_id = $1 AND task_id = $2',
+            'SELECT file_path, uploaded_by FROM task_attachments WHERE task_attachment_id = $1 AND task_id = $2',
             [attachmentId, taskId]
         );
         if (attachmentResult.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบไฟล์นี้' });
+        }
+
+        const isLeader = await isGroupLeader(req.user.userId, groupId);
+        const isOwnUpload = attachmentResult.rows[0].uploaded_by === req.user.userId;
+        if (!isLeader && !isOwnUpload) {
+            return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ลบไฟล์นี้' });
         }
 
         await pool.query('DELETE FROM task_attachments WHERE task_attachment_id = $1', [attachmentId]);
@@ -913,6 +1024,152 @@ app.delete('/api/task/:id/attachments/:attachmentId', authenticateToken, async (
         res.json({ message: 'ลบไฟล์สำเร็จ' });
     } catch (err) {
         console.error('Error deleting task attachment:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Assignee marks task as started (pending -> in_progress only)
+app.patch('/api/task/:id/start', authenticateToken, async (req, res) => {
+    const taskId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(taskId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        const taskResult = await pool.query('SELECT assigned_to, status FROM tasks WHERE task_id = $1', [taskId]);
+        if (taskResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบงานนี้' });
+        }
+        const { assigned_to: assignedTo, status } = taskResult.rows[0];
+
+        if (assignedTo == null || req.user.userId !== assignedTo) {
+            return res.status(403).json({ error: 'เฉพาะผู้รับมอบหมายเท่านั้นที่เริ่มงานนี้ได้' });
+        }
+        if (status !== 'pending') {
+            return res.status(400).json({ error: 'งานนี้เริ่มดำเนินการไปแล้ว' });
+        }
+
+        const result = await pool.query(
+            `UPDATE tasks SET status = 'in_progress' WHERE task_id = $1
+             RETURNING task_id, title, description, assigned_by, assigned_to, due_date, status, created_at`,
+            [taskId]
+        );
+        const task = result.rows[0];
+
+        console.log('Task started by assignee:', taskId);
+        res.json({
+            taskId: task.task_id,
+            title: task.title,
+            description: task.description,
+            assignedBy: task.assigned_by,
+            assignedTo: task.assigned_to,
+            dueDate: task.due_date ? task.due_date.toISOString().slice(0, 10) : null,
+            status: task.status,
+            createdAt: task.created_at,
+            message: 'เริ่มดำเนินการงานแล้ว'
+        });
+    } catch (err) {
+        console.error('Error starting task:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Submit task
+app.post('/api/task/:id/submission', authenticateToken, async (req, res) => {
+    const taskId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(taskId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { note } = req.body;
+
+    try {
+        const taskResult = await pool.query('SELECT assigned_to, status FROM tasks WHERE task_id = $1', [taskId]);
+        if (taskResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบงานนี้' });
+        }
+        const { assigned_to: assignedTo, status } = taskResult.rows[0];
+
+        if (assignedTo == null) {
+            return res.status(400).json({ error: 'งานนี้ยังไม่ได้มอบหมายให้ใคร' });
+        }
+        if (req.user.userId !== assignedTo) {
+            return res.status(403).json({ error: 'เฉพาะผู้รับมอบหมายเท่านั้นที่ส่งงานนี้ได้' });
+        }
+        if (status === 'pending') {
+            return res.status(400).json({ error: 'กรุณากดเริ่มดำเนินการก่อนจึงจะส่งงานได้' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO task_submissions (task_id, submitted_by, note) VALUES ($1, $2, $3)
+             ON CONFLICT (task_id) DO UPDATE SET note = $3, submitted_at = now()
+             RETURNING task_id, submitted_by, note, submitted_at`,
+            [taskId, req.user.userId, note || null]
+        );
+        await pool.query(`UPDATE tasks SET status = 'under_review' WHERE task_id = $1`, [taskId]);
+
+        console.log('Task submission saved successfully:', taskId);
+        res.json({
+            taskId: result.rows[0].task_id,
+            submittedBy: result.rows[0].submitted_by,
+            note: result.rows[0].note,
+            submittedAt: result.rows[0].submitted_at,
+            message: 'บันทึกการส่งงานสำเร็จ'
+        });
+    } catch (err) {
+        console.error('Error saving task submission:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Review task submission
+const TASK_REVIEW_STATUS_VALUES = ['approved', 'rejected', 'revision_requested'];
+
+app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
+    const taskId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(taskId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { reviewStatus, comment } = req.body;
+
+    if (!reviewStatus || !TASK_REVIEW_STATUS_VALUES.includes(reviewStatus)) {
+        return res.status(400).json({ error: 'สถานะการตรวจงานไม่ถูกต้อง' });
+    }
+
+    try {
+        const taskResult = await pool.query('SELECT group_id FROM tasks WHERE task_id = $1', [taskId]);
+        if (taskResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบงานนี้' });
+        }
+        const groupId = taskResult.rows[0].group_id;
+
+        if (!(await isGroupLeader(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่ตรวจงานได้' });
+        }
+
+        const submissionResult = await pool.query('SELECT 1 FROM task_submissions WHERE task_id = $1', [taskId]);
+        if (submissionResult.rows.length === 0) {
+            return res.status(400).json({ error: 'ยังไม่มีการส่งงานสำหรับงานนี้' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO task_reviews (task_id, reviewed_by, review_status, comment)
+             VALUES ($1, $2, $3, $4)
+             RETURNING task_review_id, reviewed_by, review_status, comment, reviewed_at`,
+            [taskId, req.user.userId, reviewStatus, comment || null]
+        );
+        const newTaskStatus = reviewStatus === 'approved' ? 'completed' : 'in_progress';
+        await pool.query('UPDATE tasks SET status = $1 WHERE task_id = $2', [newTaskStatus, taskId]);
+
+        console.log('Task review saved successfully:', taskId);
+        res.status(201).json({
+            reviewId: result.rows[0].task_review_id,
+            reviewedBy: result.rows[0].reviewed_by,
+            reviewStatus: result.rows[0].review_status,
+            comment: result.rows[0].comment,
+            reviewedAt: result.rows[0].reviewed_at,
+            message: 'บันทึกผลการตรวจสำเร็จ'
+        });
+    } catch (err) {
+        console.error('Error saving task review:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });

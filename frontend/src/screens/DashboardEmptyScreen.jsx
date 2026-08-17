@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { btnPrimary } from '../styles/common.js';
 import JoinCodeInput from '../components/JoinCodeInput.jsx';
+import { IoMdAdd, IoMdArrowForward } from 'react-icons/io';
 
 export default function DashboardEmptyScreen({ v }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,13 +39,13 @@ export default function DashboardEmptyScreen({ v }) {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, maxWidth: 920, width: '100%' }}>
           <div style={{ background: '#fff', borderRadius: 14, padding: '34px 28px', textAlign: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#EFF6FF', color: '#2563EB', fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>+</div>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><IoMdAdd size={24} /></div>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 8 }}>สร้างทีมใหม่</div>
             <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 22, lineHeight: 1.6 }}>สำหรับหัวหน้ากลุ่ม<br />สร้างทีมใหม่และเชิญเพื่อนเข้าร่วม</div>
             <button onClick={v.goCreateGroup} style={{ ...btnPrimary, padding: '10px 26px' }}>สร้างทีม</button>
           </div>
           <div style={{ background: '#fff', borderRadius: 14, padding: '34px 28px', textAlign: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#EFF6FF', color: '#2563EB', fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>→</div>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><IoMdArrowForward size={24} /></div>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 8 }}>เข้าร่วมทีม</div>
             <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16, lineHeight: 1.6 }}>ใส่รหัสทีม 6 หลักที่ได้รับ<br />จากหัวหน้ากลุ่มเพื่อเข้าร่วม</div>
             <JoinCodeInput digits={v.joinDigits} />

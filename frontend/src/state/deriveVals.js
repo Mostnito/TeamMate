@@ -1,4 +1,5 @@
 import { evalCriteriaList, leaderboardData, errorLogsData, securityAlertsData, recentFiles, statusMeta, boardColumnDefs } from '../data/seedData.js';
+import { IoMdFlag, IoMdHome, IoMdPeople, IoMdGrid, IoMdCheckbox, IoMdCalendar, IoMdStar } from 'react-icons/io';
 
 const monthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const weekdayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
@@ -47,14 +48,14 @@ export default function deriveVals(state, actions) {
   };
 
   const navMap = s.isAdminMode ? [
-    { key: 'admin', label: 'คัดกรองการกระทำ', icon: '⚑' }
+    { key: 'admin', label: 'คัดกรองการกระทำ', icon: IoMdFlag }
   ] : [
-    { key: 'dashboard', label: 'แดชบอร์ด', icon: '⌂' },
-    { key: 'teams', label: 'ทีม', icon: '▤' },
-    { key: 'projects', label: 'โปรเจ็ก', icon: '≣' },
-    { key: 'assignment', label: 'งานที่มอบหมาย', icon: '☑' },
-    { key: 'calendar', label: 'ปฏิทิน', icon: '▦' },
-    { key: 'leaderboard', label: 'อันดับคะแนน', icon: '★' }
+    { key: 'dashboard', label: 'แดชบอร์ด', icon: IoMdHome },
+    { key: 'teams', label: 'ทีม', icon: IoMdPeople },
+    { key: 'projects', label: 'โปรเจ็ก', icon: IoMdGrid },
+    { key: 'assignment', label: 'งานที่มอบหมาย', icon: IoMdCheckbox },
+    { key: 'calendar', label: 'ปฏิทิน', icon: IoMdCalendar },
+    { key: 'leaderboard', label: 'อันดับคะแนน', icon: IoMdStar }
   ];
   const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', leaderboard: 'leaderboard', teamTasks: 'teams', taskDetail: 'teams' };
 

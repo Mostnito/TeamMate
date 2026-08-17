@@ -3,10 +3,12 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { btnPrimary, statusPill } from '../styles/common.js';
 import CreateTaskModal from '../components/CreateTaskModal.jsx';
+import { IoMdArrowBack, IoMdAdd } from 'react-icons/io';
 
 const STATUS_META = {
   pending: { label: 'รอดำเนินการ', bg: '#F3F4F6', color: '#6B7280' },
   in_progress: { label: 'กำลังดำเนินการ', bg: '#FEF3C7', color: '#D97706' },
+  under_review: { label: 'รอตรวจ', bg: '#EFF6FF', color: '#1D4ED8' },
   completed: { label: 'เสร็จแล้ว', bg: '#E8F8EE', color: '#16A34A' },
   overdue: { label: 'เลยกำหนด', bg: '#FEE2E2', color: '#DC2626' },
   cancelled: { label: 'ยกเลิก', bg: '#F3F4F6', color: '#9CA3AF' }
@@ -91,9 +93,9 @@ export default function TeamTasksScreen({ v }) {
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 700, fontSize: 15, cursor: 'pointer' }} onClick={v.backToTeamDetail}>
-          <span>←</span><span>งานที่ได้รับมอบหมาย</span>
+          <IoMdArrowBack size={16} /><span>งานที่ได้รับมอบหมาย</span>
         </div>
-        {isLeader && <button onClick={() => setModalOpen(true)} style={btnPrimary}>+ เพิ่มงาน</button>}
+        {isLeader && <button onClick={() => setModalOpen(true)} style={{ ...btnPrimary, display: 'flex', alignItems: 'center', gap: 4 }}><IoMdAdd size={14} /> เพิ่มงาน</button>}
       </div>
       {tasks.length === 0 ? (
         <div style={{ fontSize: 13, color: '#6B7280' }}>ยังไม่มีงานในทีมนี้</div>

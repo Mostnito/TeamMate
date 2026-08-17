@@ -1,3 +1,5 @@
+import { IoMdCheckmark, IoMdCloseCircle } from 'react-icons/io';
+
 export default function AdminScreen({ v }) {
   return (
     <div style={{ padding: '22px 28px' }}>
@@ -37,8 +39,8 @@ export default function AdminScreen({ v }) {
                   <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{item.detail}</div>
                   <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 12 }}>ผู้ยื่นคำขอ: {item.requester} &nbsp;·&nbsp; กลุ่ม: {item.group}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={item.onApprove} style={{ background: '#E8F8EE', color: '#16A34A', border: 'none', padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>✓ อนุมัติ</button>
-                    <button onClick={item.onReject} style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>✕ ปฏิเสธ</button>
+                    <button onClick={item.onApprove} style={{ background: '#E8F8EE', color: '#16A34A', border: 'none', padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><IoMdCheckmark size={14} /> อนุมัติ</button>
+                    <button onClick={item.onReject} style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><IoMdCloseCircle size={14} /> ปฏิเสธ</button>
                   </div>
                 </div>
               ))}

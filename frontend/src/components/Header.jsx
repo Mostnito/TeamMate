@@ -1,8 +1,10 @@
+import { IoMdSearch } from 'react-icons/io';
+
 export default function Header({ v }) {
   return (
     <div style={{ height: 64, minHeight: 64, background: '#fff', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F3F4F6', borderRadius: 9, padding: '8px 14px', width: 340 }}>
-        <span style={{ color: '#6B7280', fontSize: 14 }}>⌕</span>
+        <IoMdSearch size={14} color="#6B7280" />
         <input placeholder="ค้นหาโปรเจกต์ ทีม หรือไฟล์..." style={{ border: 'none', background: 'transparent', fontSize: 13, width: '100%', color: '#374151' }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

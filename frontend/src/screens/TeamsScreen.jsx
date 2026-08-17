@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { card, btnPrimary, btnGhostBlue } from '../styles/common.js';
+import { IoMdAdd } from 'react-icons/io';
 
 const PALETTE = [
   { tint: '#EFF6FF', accent: '#2563EB' },
@@ -40,7 +41,7 @@ export default function TeamsScreen({ v }) {
         <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>ทีมของฉัน</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={v.goJoinGroup} style={btnGhostBlue}>เข้าร่วมทีม</button>
-          <button onClick={v.goCreateGroup} style={btnPrimary}>+ สร้างทีมใหม่</button>
+          <button onClick={v.goCreateGroup} style={{ ...btnPrimary, display: 'flex', alignItems: 'center', gap: 4 }}><IoMdAdd size={14} /> สร้างทีมใหม่</button>
         </div>
       </div>
       {isLoading ? (
@@ -59,7 +60,7 @@ export default function TeamsScreen({ v }) {
                   <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{g.subjectName}</div>
                 </div>
                 <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 10 }}>{g.subjectCode}</div>
-                <div style={{ fontSize: 11.5, color: '#6B7280', marginBottom: 12 }}>👥 {g.memberCount} สมาชิก &nbsp;·&nbsp; ☑ 0 งาน</div>
+                <div style={{ fontSize: 11.5, color: '#6B7280', marginBottom: 12 }}>{g.memberCount} สมาชิก &nbsp;·&nbsp; {g.taskCount} งาน</div>
                 <button onClick={v.openTeam(g.groupId)} style={{ ...btnGhostBlue, width: '100%', padding: 9 }}>ดูและเลือกทีม</button>
               </div>
             );
