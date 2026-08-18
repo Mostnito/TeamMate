@@ -35,6 +35,10 @@ export default function LoginScreen({ v }) {
       };
 
       v.completeLogin(currentUser, isAdminMode);
+
+      const groupsRes = await axios.get('/api/group/data', { headers: { Authorization: `Bearer ${res.data.token}` } });
+      v.setMyTeamCount(groupsRes.data.length);
+
       toast.success(res.data.message || 'เข้าสู่ระบบสำเร็จ');
     } catch (err) {
       toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');

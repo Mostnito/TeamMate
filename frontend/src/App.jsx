@@ -52,6 +52,10 @@ export default function App() {
         const isAdminMode = res.data.role === 'admin';
         const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId, avatarUrl: res.data.avatarUrl || '' };
         actions.completeLogin(currentUser, isAdminMode);
+        return axios.get('/api/group/data', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
+      })
+      .then((groupsRes) => {
+        actions.setMyTeamCount(groupsRes.data.length);
       })
       .catch((err) => {
         if (axios.isCancel(err)) return;

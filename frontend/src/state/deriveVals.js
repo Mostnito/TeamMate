@@ -207,7 +207,7 @@ export default function deriveVals(state, actions) {
   const currentUserInitials = currentUserName.trim().split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'ผู';
   const currentUserRoleLabel = s.isAdminMode ? 'ผู้ดูแลระบบ' : 'นักศึกษา';
 
-  const hasTeam = groupsData.some((g) => g.members.some((m) => m.studentId === s.currentUser.studentId || m.name === s.currentUser.name));
+  const hasTeam = s.myTeamCount > 0;
 
   return {
     showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel, currentUserId: s.currentUser.userId, currentUserAvatarUrl: s.currentUser.avatarUrl,
@@ -215,7 +215,7 @@ export default function deriveVals(state, actions) {
     isLogin, loginEmail: s.loginEmail, loginPassword: s.loginPassword,
     loginPwType: s.loginShowPw ? 'text' : 'password', loginPwIcon: s.loginShowPw ? 'ซ่อน' : 'แสดง',
     onLoginEmailChange: actions.onLoginEmailChange, onLoginPasswordChange: actions.onLoginPasswordChange, toggleLoginPw: actions.toggleLoginPw,
-    completeLogin: actions.completeLogin, updateCurrentUser: actions.updateCurrentUser, goSignup: actions.go('signup'),
+    completeLogin: actions.completeLogin, updateCurrentUser: actions.updateCurrentUser, goSignup: actions.go('signup'), setMyTeamCount: actions.setMyTeamCount,
     isSignup, su: s.su, toggleGender: actions.toggleGender, toggleSkill: actions.toggleSkill, showSkillOtherInput: s.su.skills.includes('อื่น ๆ'), onSuSkillOther: actions.onSuSkillOther,
     resetSu: actions.resetSu, goLogin: actions.go('login'),
     onSuFirstName: actions.onSu('firstName'), onSuLastName: actions.onSu('lastName'), onSuNickname: actions.onSu('nickname'), onSuStudentId: actions.onSu('studentId'),
@@ -226,7 +226,7 @@ export default function deriveVals(state, actions) {
     isCreateGroup: s.screen === 'createGroup', onGroupCreated: actions.onGroupCreated, goDashboard: actions.go('dashboard'),
     isGroupCreated: s.screen === 'groupCreated', newGroupCode: s.newGroupCode, copyLabel: s.copyLabel, copyCode: actions.copyCode, goTeams: actions.go('teams'),
     dashStats: {
-      teamCount: groupsData.length,
+      teamCount: s.myTeamCount,
       pendingTasks: s.tasks.filter((t) => t.status !== 'completed').length,
       points: (leaderboardData.find((p) => p.firstName === (s.currentUser.firstName || '')) || {}).points ?? 980
     },

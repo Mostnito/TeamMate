@@ -52,7 +52,8 @@ const initialState = {
   adminUsersList: initialAdminUsersList,
   currentUser: { name: '', firstName: '', studentId: '', userId: null, avatarUrl: '' },
   moderationQueue: initialModerationQueue,
-  groupsData: initialGroupsData
+  groupsData: initialGroupsData,
+  myTeamCount: 0
 };
 
 export default function useAppState() {
@@ -78,6 +79,10 @@ export default function useAppState() {
   }));
 
   const updateCurrentUser = (patch) => setState((s) => ({ ...s, currentUser: { ...s.currentUser, ...patch } }));
+
+  // real team count, fetched via /api/group/data directly in App.jsx (session restore) and LoginScreen.jsx (fresh login);
+  // this just applies the result to central state so deriveVals' hasTeam can reflect real membership instead of mock data
+  const setMyTeamCount = (count) => setState((s) => ({ ...s, myTeamCount: count }));
 
   const onSu = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, su: { ...s.su, [field]: v } })); };
   const onSuSkillOther = (e) => { const v = e.target.value; setState((s) => ({ ...s, su: { ...s.su, skillOther: v } })); };
@@ -130,7 +135,7 @@ export default function useAppState() {
   // real team navigation (Phase 1) - fully separate from the mock selectedGroupId/groupsData system above
   const openTeam = (groupId) => () => setState((s) => ({ ...s, teamId: groupId, teamTab: 'overview', screen: 'teamDetail' }));
   const goTeamTasks = () => setState((s) => ({ ...s, screen: 'teamTasks' }));
-  const openTaskDetail = (taskId) => () => setState((s) => ({ ...s, selectedTaskId: taskId, screen: 'taskDetail' }));
+  const openTaskDetail = (taskId, groupId) => () => setState((s) => ({ ...s, selectedTaskId: taskId, ...(groupId != null ? { teamId: groupId } : {}), screen: 'taskDetail' }));
   const backToTeamDetail = () => setState((s) => ({ ...s, screen: 'teamDetail', teamTab: 'overview' }));
 
   const getEvalEntry = (groupCode, studentId, s) => {
@@ -315,7 +320,7 @@ export default function useAppState() {
 
   const actions = {
     notify, stopPropagation, go, goSettings,
-    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser,
+    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser, setMyTeamCount,
     onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
     onGroupCreated, onJoinDigit, onGroupJoined, copyCode,
     openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, setTeamTab,
