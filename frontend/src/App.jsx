@@ -22,6 +22,7 @@ import ProjectsScreen from './screens/ProjectsScreen.jsx';
 import TeamDetailScreen from './screens/TeamDetailScreen.jsx';
 import TeamTasksScreen from './screens/TeamTasksScreen.jsx';
 import TeamProgressScreen from './screens/TeamProgressScreen.jsx';
+import TeamChatScreen from './screens/TeamChatScreen.jsx';
 import TaskDetailScreen from './screens/TaskDetailScreen.jsx';
 import TimelineScreen from './screens/TimelineScreen.jsx';
 import ProgressScreen from './screens/ProgressScreen.jsx';
@@ -87,6 +88,7 @@ export default function App() {
             {v.isTeamDetail && <TeamDetailScreen v={v} />}
             {v.isTeamTasks && <TeamTasksScreen v={v} />}
             {v.isTeamProgress && <TeamProgressScreen v={v} />}
+            {v.isTeamChat && <TeamChatScreen v={v} />}
             {v.isTaskDetail && <TaskDetailScreen v={v} />}
             {v.isTimeline && <TimelineScreen v={v} />}
             {v.isProgress && <ProgressScreen v={v} />}

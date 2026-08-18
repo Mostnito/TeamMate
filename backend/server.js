@@ -10,6 +10,52 @@ const fs = require('fs');
 const path = require('path');
 const { Server } = require("socket.io");
 const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error('No token'));
+    try {
+        socket.userId = jwt.verify(token, process.env.TOKEN_SECRET).userId;
+        next();
+    } catch (err) {
+        next(new Error('Invalid token'));
+    }
+});
+
+io.on('connection', (socket) => {
+    socket.on('join_group', async (groupId) => {
+        if (!(await isGroupMember(socket.userId, groupId))) return;
+        socket.join(`group_${groupId}`);
+    });
+
+    socket.on('send_message', async ({ groupId, content }) => {
+        if (!content || !content.trim()) return;
+        if (!(await isGroupMember(socket.userId, groupId))) return;
+
+        try {
+            const result = await pool.query(
+                `INSERT INTO messages (group_id, user_id, content) VALUES ($1, $2, $3)
+                 RETURNING message_id, group_id, user_id, content, sent_at`,
+                [groupId, socket.userId, content.trim()]
+            );
+            const userResult = await pool.query('SELECT firstname, lastname, avatar_path FROM users WHERE user_id = $1', [socket.userId]);
+            const msg = result.rows[0];
+            const sender = userResult.rows[0];
+            io.to(`group_${groupId}`).emit('message_received', {
+                messageId: msg.message_id,
+                groupId: msg.group_id,
+                senderId: msg.user_id,
+                senderName: `${sender.firstname} ${sender.lastname}`,
+                senderAvatarUrl: sender.avatar_path,
+                content: msg.content,
+                sentAt: msg.sent_at
+            });
+        } catch (err) {
+            console.error('Error sending chat message:', err);
+        }
+    });
+});
 
 require("dotenv").config();
 
@@ -698,6 +744,40 @@ app.get('/api/group/:id/tasks', authenticateToken, async (req, res) => {
         })));
     } catch (err) {
         console.error('Error fetching group tasks:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Get group chat history (latest 50 messages, chronological order)
+app.get('/api/group/:id/messages', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isGroupMember(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
+        }
+        const result = await pool.query(
+            `SELECT m.message_id, m.group_id, m.user_id, m.content, m.sent_at, u.firstname, u.lastname, u.avatar_path
+             FROM messages m
+             JOIN users u ON u.user_id = m.user_id
+             WHERE m.group_id = $1
+             ORDER BY m.sent_at DESC
+             LIMIT 50`,
+            [groupId]
+        );
+        res.json(result.rows.reverse().map((r) => ({
+            messageId: r.message_id,
+            groupId: r.group_id,
+            senderId: r.user_id,
+            senderName: `${r.firstname} ${r.lastname}`,
+            senderAvatarUrl: r.avatar_path,
+            content: r.content,
+            sentAt: r.sent_at
+        })));
+    } catch (err) {
+        console.error('Error fetching group messages:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });
