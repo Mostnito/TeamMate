@@ -121,13 +121,14 @@ export default function useAppState() {
   const openProjectTasks = (groupId) => () => setState((s) => ({ ...s, selectedGroupId: groupId, teamTab: 'tasks', screen: 'timeline' }));
 
   // TeamDetailScreen is the sole consumer of setTeamTab (real teams only, wired to real APIs).
-  // Chat/Progress have no backend yet; Evaluation is rendered inline as a placeholder instead of navigating.
+  // Chat has no backend yet; Evaluation is rendered inline as a placeholder instead of navigating.
   const setTeamTab = (tab) => () => {
-    if (tab === 'chat' || tab === 'progress') {
+    if (tab === 'chat') {
       toast.info('ฟีเจอร์นี้ยังไม่เปิดใช้งาน');
       return;
     }
-    setState((s) => ({ ...s, teamTab: tab, screen: tab === 'tasks' ? 'teamTasks' : 'teamDetail' }));
+    const screen = tab === 'tasks' ? 'teamTasks' : tab === 'progress' ? 'teamProgress' : 'teamDetail';
+    setState((s) => ({ ...s, teamTab: tab, screen }));
   };
 
   // real team navigation (Phase 1) - fully separate from the mock selectedGroupId/groupsData system above
