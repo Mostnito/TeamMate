@@ -655,6 +655,192 @@ app.get('/api/group/:id/members', authenticateToken, async (req, res) => {
     }
 });
 
+//Get my peer-evaluation progress + given evaluations + (gated) received results for this group
+app.get('/api/group/:id/evaluations/me', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isGroupMember(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
+        }
+
+        const memberCountResult = await pool.query('SELECT COUNT(*)::int AS c FROM group_members WHERE group_id = $1', [groupId]);
+        const total = Math.max(memberCountResult.rows[0].c - 1, 0);
+
+        const givenResult = await pool.query(
+            `SELECT pe.evaluatee_id, pe.comment, pes.criterion, pes.score
+             FROM peer_evaluations pe
+             JOIN peer_evaluation_scores pes ON pes.peer_evaluation_id = pe.peer_evaluation_id
+             WHERE pe.group_id = $1 AND pe.evaluator_id = $2`,
+            [groupId, req.user.userId]
+        );
+        const givenMap = new Map();
+        for (const row of givenResult.rows) {
+            if (!givenMap.has(row.evaluatee_id)) givenMap.set(row.evaluatee_id, { evaluateeId: row.evaluatee_id, comment: row.comment, scores: {} });
+            givenMap.get(row.evaluatee_id).scores[row.criterion] = row.score;
+        }
+        const given = [...givenMap.values()];
+        const completed = given.length;
+        const isComplete = total === 0 || completed >= total;
+
+        let received = null;
+        if (isComplete) {
+            const avgResult = await pool.query(
+                `SELECT pes.criterion, ROUND(AVG(pes.score)::numeric, 2) AS avg_score
+                 FROM peer_evaluations pe
+                 JOIN peer_evaluation_scores pes ON pes.peer_evaluation_id = pe.peer_evaluation_id
+                 WHERE pe.group_id = $1 AND pe.evaluatee_id = $2
+                 GROUP BY pes.criterion`,
+                [groupId, req.user.userId]
+            );
+            const commentsResult = await pool.query(
+                `SELECT pe.comment, pe.peer_evaluation_id
+                 FROM peer_evaluations pe
+                 WHERE pe.group_id = $1 AND pe.evaluatee_id = $2`,
+                [groupId, req.user.userId]
+            );
+            const averages = {};
+            avgResult.rows.forEach((r) => { averages[r.criterion] = Number(r.avg_score); });
+            const comments = commentsResult.rows.map((r) => r.comment).filter((c) => c && c.trim());
+            for (let i = comments.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [comments[i], comments[j]] = [comments[j], comments[i]];
+            }
+            received = { evaluatorCount: commentsResult.rows.length, averages, comments };
+        }
+
+        res.json({ progress: { total, completed, isComplete }, given, received });
+    } catch (err) {
+        console.error('Error fetching my peer evaluations:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Give / update peer evaluations for every other teammate at once (upsert, all-or-nothing)
+app.post('/api/group/:id/evaluations', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+
+    const CRITERIA = ['responsibility', 'quality', 'communication', 'punctuality', 'teamwork'];
+    const { evaluations } = req.body;
+    if (!Array.isArray(evaluations) || evaluations.length === 0) {
+        return res.status(400).json({ error: 'กรุณาให้คะแนนเพื่อนร่วมทีมก่อนบันทึก' });
+    }
+    const invalidEntry = evaluations.some((e) =>
+        !Number.isInteger(e.evaluateeId) || e.evaluateeId === req.user.userId || !e.scores ||
+        CRITERIA.some((c) => !Number.isInteger(e.scores[c]) || e.scores[c] < 1 || e.scores[c] > 5)
+    );
+    if (invalidEntry) {
+        return res.status(400).json({ error: 'กรุณาให้คะแนนครบทุกหัวข้อ (1-5 คะแนน)' });
+    }
+
+    const client = await pool.connect();
+    try {
+        if (!(await isGroupMember(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
+        }
+
+        const membersResult = await pool.query('SELECT user_id FROM group_members WHERE group_id = $1', [groupId]);
+        const expectedIds = new Set(membersResult.rows.map((r) => r.user_id).filter((id) => id !== req.user.userId));
+        const submittedIds = new Set(evaluations.map((e) => e.evaluateeId));
+        const sameSize = expectedIds.size === submittedIds.size;
+        const sameMembers = sameSize && [...expectedIds].every((id) => submittedIds.has(id));
+        if (!sameMembers) {
+            return res.status(400).json({ error: 'รายชื่อสมาชิกมีการเปลี่ยนแปลง กรุณาโหลดหน้าใหม่' });
+        }
+
+        await client.query('BEGIN');
+        for (const e of evaluations) {
+            const comment = (e.comment || '').trim() || null;
+            const peResult = await client.query(
+                `INSERT INTO peer_evaluations (group_id, evaluator_id, evaluatee_id, comment)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (group_id, evaluator_id, evaluatee_id) DO UPDATE SET comment = EXCLUDED.comment
+                 RETURNING peer_evaluation_id`,
+                [groupId, req.user.userId, e.evaluateeId, comment]
+            );
+            const peId = peResult.rows[0].peer_evaluation_id;
+            await client.query(
+                `INSERT INTO peer_evaluation_scores (peer_evaluation_id, criterion, score) VALUES
+                   ($1, 'responsibility', $2), ($1, 'quality', $3), ($1, 'communication', $4),
+                   ($1, 'punctuality', $5), ($1, 'teamwork', $6)
+                 ON CONFLICT (peer_evaluation_id, criterion) DO UPDATE SET score = EXCLUDED.score`,
+                [peId, e.scores.responsibility, e.scores.quality, e.scores.communication, e.scores.punctuality, e.scores.teamwork]
+            );
+        }
+        await client.query('COMMIT');
+
+        console.log('Peer evaluations saved:', req.user.userId, '->', [...submittedIds].join(','), 'in group', groupId);
+        res.json({ message: 'บันทึกการประเมินทั้งหมดสำเร็จ' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error saving peer evaluations:', err);
+        if (err.code === '23514') {
+            return res.status(400).json({ error: 'ไม่สามารถประเมินตัวเองได้' });
+        }
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    } finally {
+        client.release();
+    }
+});
+
+//Team-wide peer evaluation summary (leader only, gated on the leader's own progress)
+app.get('/api/group/:id/evaluations/summary', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isGroupLeader(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่ดูภาพรวมคะแนนทีมได้' });
+        }
+
+        const memberCountResult = await pool.query('SELECT COUNT(*)::int AS c FROM group_members WHERE group_id = $1', [groupId]);
+        const total = Math.max(memberCountResult.rows[0].c - 1, 0);
+        const myGivenResult = await pool.query(
+            'SELECT COUNT(DISTINCT evaluatee_id)::int AS c FROM peer_evaluations WHERE group_id = $1 AND evaluator_id = $2',
+            [groupId, req.user.userId]
+        );
+        const completed = myGivenResult.rows[0].c;
+        const isUnlocked = total === 0 || completed >= total;
+        if (!isUnlocked) {
+            return res.json({ isUnlocked: false, progress: { total, completed }, members: [] });
+        }
+
+        const avgResult = await pool.query(
+            `SELECT gm.user_id AS evaluatee_id, pes.criterion, ROUND(AVG(pes.score)::numeric, 2) AS avg_score
+             FROM group_members gm
+             LEFT JOIN peer_evaluations pe ON pe.evaluatee_id = gm.user_id AND pe.group_id = gm.group_id
+             LEFT JOIN peer_evaluation_scores pes ON pes.peer_evaluation_id = pe.peer_evaluation_id
+             WHERE gm.group_id = $1
+             GROUP BY gm.user_id, pes.criterion`,
+            [groupId]
+        );
+        const countResult = await pool.query(
+            `SELECT gm.user_id AS evaluatee_id, COUNT(DISTINCT pe.evaluator_id)::int AS evaluator_count
+             FROM group_members gm
+             LEFT JOIN peer_evaluations pe ON pe.evaluatee_id = gm.user_id AND pe.group_id = gm.group_id
+             WHERE gm.group_id = $1
+             GROUP BY gm.user_id`,
+            [groupId]
+        );
+        const byUser = new Map(countResult.rows.map((r) => [r.evaluatee_id, { userId: r.evaluatee_id, evaluatorCount: r.evaluator_count, averages: {} }]));
+        avgResult.rows.forEach((r) => {
+            if (r.criterion == null) return;
+            byUser.get(r.evaluatee_id).averages[r.criterion] = Number(r.avg_score);
+        });
+
+        res.json({ isUnlocked: true, progress: { total, completed }, members: [...byUser.values()] });
+    } catch (err) {
+        console.error('Error fetching team evaluation summary:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Kick group member (leader only) - unassigns their tasks in this group too
 app.delete('/api/group/:id/members/:userId', authenticateToken, async (req, res) => {
     const groupId = parseInt(req.params.id, 10);

@@ -238,6 +238,7 @@ export default function deriveVals(state, actions) {
     isTeamTasks: s.screen === 'teamTasks', goTeamTasks: actions.goTeamTasks,
     isTeamProgress: s.screen === 'teamProgress',
     isTeamChat: s.screen === 'teamChat',
+    isTeamEvaluation: s.screen === 'teamEvaluation',
     isTaskDetail: s.screen === 'taskDetail', selectedTaskId: s.selectedTaskId, openTaskDetail: actions.openTaskDetail, backToTeamDetail: actions.backToTeamDetail,
     isProjects: s.screen === 'projects',
     projectCards: groupsData.map((g) => {

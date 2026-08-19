@@ -126,9 +126,8 @@ export default function useAppState() {
   const openProjectTasks = (groupId) => () => setState((s) => ({ ...s, selectedGroupId: groupId, teamTab: 'tasks', screen: 'timeline' }));
 
   // TeamDetailScreen is the sole consumer of setTeamTab (real teams only, wired to real APIs).
-  // Evaluation is rendered inline as a placeholder instead of navigating.
   const setTeamTab = (tab) => () => {
-    const screen = tab === 'tasks' ? 'teamTasks' : tab === 'progress' ? 'teamProgress' : tab === 'chat' ? 'teamChat' : 'teamDetail';
+    const screen = tab === 'tasks' ? 'teamTasks' : tab === 'progress' ? 'teamProgress' : tab === 'chat' ? 'teamChat' : tab === 'evaluation' ? 'teamEvaluation' : 'teamDetail';
     setState((s) => ({ ...s, teamTab: tab, screen }));
   };
 

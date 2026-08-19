@@ -287,12 +287,6 @@ export default function TeamDetailScreen({ v }) {
           ))}
         </div>
       )}
-
-      {v.teamTabEvaluation && (
-        <div style={card}>
-          <div style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', padding: '20px 0' }}>ฟีเจอร์นี้ยังไม่เปิดใช้งาน</div>
-        </div>
-      )}
     </div>
   );
 }
