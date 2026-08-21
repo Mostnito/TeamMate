@@ -22,6 +22,7 @@ const PALETTE = [
 export default function DashboardScreen({ v }) {
   const [teams, setTeams] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [points, setPoints] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -30,12 +31,14 @@ export default function DashboardScreen({ v }) {
 
     Promise.all([
       axios.get('/api/group/data', { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get('/api/user/me/tasks', { headers: { Authorization: `Bearer ${token}` } })
+      axios.get('/api/user/me/tasks', { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get('/api/user/me/points', { headers: { Authorization: `Bearer ${token}` } })
     ])
-      .then(([groupsRes, tasksRes]) => {
+      .then(([groupsRes, tasksRes, pointsRes]) => {
         if (cancelled) return;
         setTeams(groupsRes.data);
         setTasks(tasksRes.data);
+        setPoints(pointsRes.data.points);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -67,7 +70,7 @@ export default function DashboardScreen({ v }) {
         </div>
         <div style={{ background: '#fff', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: 11.5, color: '#6B7280', fontWeight: 600 }}>คะแนนสะสม</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#2563EB', marginTop: 4 }}>0</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#2563EB', marginTop: 4 }}>{isLoading ? '-' : points}</div>
         </div>
       </div>
       <div className="grid-dashboard-split" style={{ gap: 18 }}>

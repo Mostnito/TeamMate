@@ -593,6 +593,65 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
     }
 });
 
+//Get the current user's own all-time points total (for the Dashboard "คะแนนสะสม" stat)
+app.get('/api/user/me/points', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT COALESCE(SUM(points_earned), 0)::int AS total_points FROM points WHERE user_id = $1',
+            [req.user.userId]
+        );
+        res.json({ points: result.rows[0].total_points });
+    } catch (err) {
+        console.error('Error fetching user points:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+// resolves a leaderboard period into a 'since' timestamp (null = all-time, no filter)
+function leaderboardSince(period) {
+    const now = new Date();
+    if (period === 'daily') {
+        return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+    }
+    if (period === 'weekly') {
+        const dayOfWeek = now.getUTCDay(); // 0 = Sunday
+        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayOfWeek));
+        return start.toISOString();
+    }
+    if (period === 'monthly') {
+        return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+    }
+    return null;
+}
+
+//Get the university-wide points leaderboard, optionally filtered to a time period
+app.get('/api/leaderboard', authenticateToken, async (req, res) => {
+    try {
+        const since = leaderboardSince(req.query.period);
+        const result = await pool.query(
+            `SELECT u.user_id, u.firstname, u.lastname, u.student_id, u.avatar_path,
+                    COALESCE(SUM(p.points_earned), 0)::int AS total_points
+             FROM users u
+             LEFT JOIN points p ON p.user_id = u.user_id AND ($1::timestamptz IS NULL OR p.created_at >= $1)
+             WHERE u.system_role = 'student'
+             GROUP BY u.user_id
+             ORDER BY total_points DESC, u.firstname ASC`,
+            [since]
+        );
+        res.json(result.rows.map((r) => ({
+            userId: r.user_id,
+            firstName: r.firstname,
+            lastName: r.lastname,
+            studentId: r.student_id,
+            avatarUrl: r.avatar_path,
+            points: r.total_points
+        })));
+    } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Get all non-completed tasks across every group the current user belongs to (for Dashboard)
 app.get('/api/user/me/tasks', authenticateToken, async (req, res) => {
     try {
