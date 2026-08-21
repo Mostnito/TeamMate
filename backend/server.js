@@ -567,7 +567,8 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
         const result = await pool.query(
             `SELECT g.group_id, g.group_code, g.subject_code, g.subject_name, g.advisor_name, gm.role,
                     (SELECT COUNT(*)::int FROM group_members gm2 WHERE gm2.group_id = g.group_id) AS member_count,
-                    (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id) AS task_count
+                    (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id) AS task_count,
+                    (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id AND t.status = 'completed') AS completed_task_count
              FROM group_members gm
              JOIN groups g ON g.group_id = gm.group_id
              WHERE gm.user_id = $1
@@ -583,7 +584,8 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
             advisorName: r.advisor_name,
             role: r.role,
             memberCount: r.member_count,
-            taskCount: r.task_count
+            taskCount: r.task_count,
+            completedTaskCount: r.completed_task_count
         })));
     } catch (err) {
         console.error('Error fetching groups:', err);
@@ -828,10 +830,25 @@ app.get('/api/group/:id/evaluations/summary', authenticateToken, async (req, res
              GROUP BY gm.user_id`,
             [groupId]
         );
-        const byUser = new Map(countResult.rows.map((r) => [r.evaluatee_id, { userId: r.evaluatee_id, evaluatorCount: r.evaluator_count, averages: {} }]));
+        const commentsResult = await pool.query(
+            `SELECT evaluatee_id, comment FROM peer_evaluations WHERE group_id = $1 AND comment IS NOT NULL AND comment <> ''`,
+            [groupId]
+        );
+        const byUser = new Map(countResult.rows.map((r) => [r.evaluatee_id, { userId: r.evaluatee_id, evaluatorCount: r.evaluator_count, averages: {}, comments: [] }]));
         avgResult.rows.forEach((r) => {
             if (r.criterion == null) return;
             byUser.get(r.evaluatee_id).averages[r.criterion] = Number(r.avg_score);
+        });
+        commentsResult.rows.forEach((r) => {
+            const entry = byUser.get(r.evaluatee_id);
+            if (entry) entry.comments.push(r.comment);
+        });
+        // shuffle each member's comments so ordering can never be correlated with evaluator identity
+        byUser.forEach((entry) => {
+            for (let i = entry.comments.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [entry.comments[i], entry.comments[j]] = [entry.comments[j], entry.comments[i]];
+            }
         });
 
         res.json({ isUnlocked: true, progress: { total, completed }, members: [...byUser.values()] });

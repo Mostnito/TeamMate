@@ -234,7 +234,7 @@ export default function deriveVals(state, actions) {
     dashNoUpcomingTasks: allTasksFlat.filter((t) => t.status !== 'completed').length === 0,
     isDashboardEmpty: s.screen === 'dashboard' && !hasTeam,
     isTeams: s.screen === 'teams', groups, isJoinGroup: s.screen === 'joinGroup', goJoinGroup: actions.goJoinGroup,
-    openTeam: actions.openTeam, teamId: s.teamId,
+    openTeam: actions.openTeam, openTeamTasks: actions.openTeamTasks, teamId: s.teamId,
     isTeamTasks: s.screen === 'teamTasks', goTeamTasks: actions.goTeamTasks,
     isTeamProgress: s.screen === 'teamProgress',
     isTeamChat: s.screen === 'teamChat',

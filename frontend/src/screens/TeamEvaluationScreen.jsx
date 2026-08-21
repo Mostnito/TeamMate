@@ -131,14 +131,21 @@ export default function TeamEvaluationScreen({ v }) {
       return `<tr><td style="padding:8px;border:1px solid #ddd;">${esc(m.firstName)} ${esc(m.lastName)}</td>${scoreCells}<td style="text-align:center;padding:8px;border:1px solid #ddd;">${sm.evaluatorCount}</td></tr>`;
     }).join('');
     const criteriaHeaders = CRITERIA.map((c) => `<th>${esc(c.label)}</th>`).join('');
+    const commentsHtml = summary.members.map((sm) => {
+      const m = membersById.get(sm.userId);
+      if (!m || sm.comments.length === 0) return '';
+      const items = sm.comments.map((cm) => `<li>${esc(cm)}</li>`).join('');
+      return `<h3 style="font-size:13px;margin:16px 0 4px;">${esc(m.firstName)} ${esc(m.lastName)}</h3><ul style="margin:0 0 4px;padding-left:20px;font-size:12.5px;">${items}</ul>`;
+    }).join('');
     const scriptOpen = '<' + 'script>';
     const scriptClose = '<' + '/script>';
     const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>ผลการประเมิน ' + esc(groupInfo?.subjectCode || '') + '</title>' +
-      '<style>body{font-family:"Segoe UI",Tahoma,sans-serif;padding:32px;color:#111827;}h1{font-size:20px;margin-bottom:4px;}p{font-size:13px;color:#555;margin-bottom:20px;}table{border-collapse:collapse;width:100%;font-size:12.5px;}th{padding:8px;border:1px solid #ddd;background:#f3f4f6;text-align:left;}</style>' +
+      '<style>body{font-family:"Segoe UI",Tahoma,sans-serif;padding:32px;color:#111827;}h1{font-size:20px;margin-bottom:4px;}h2{font-size:15px;margin:28px 0 10px;}p{font-size:13px;color:#555;margin-bottom:20px;}table{border-collapse:collapse;width:100%;font-size:12.5px;}th{padding:8px;border:1px solid #ddd;background:#f3f4f6;text-align:left;}</style>' +
       '</head><body>' +
       `<h1>ผลการประเมินสมาชิกในทีม ${esc(groupInfo?.subjectName || '')}</h1>` +
       `<p>รหัสวิชา ${esc(groupInfo?.subjectCode || '')} · คะแนนเต็มข้อละ 5 · ไม่ระบุตัวตนผู้ประเมิน</p>` +
       `<table><thead><tr><th>ชื่อสมาชิก</th>${criteriaHeaders}<th>จำนวนผู้ประเมิน</th></tr></thead><tbody>${rowsHtml}</tbody></table>` +
+      (commentsHtml ? `<h2>ความคิดเห็น (ไม่ระบุตัวตนผู้ประเมิน)</h2>${commentsHtml}` : '') +
       scriptOpen + 'window.onload = function(){ window.print(); };' + scriptClose +
       '</body></html>';
     const blob = new Blob([html], { type: 'text/html' });

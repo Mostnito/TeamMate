@@ -136,6 +136,7 @@ export default function useAppState() {
   const goTeamTasks = () => setState((s) => ({ ...s, screen: 'teamTasks' }));
   const openTaskDetail = (taskId, groupId) => () => setState((s) => ({ ...s, selectedTaskId: taskId, ...(groupId != null ? { teamId: groupId } : {}), screen: 'taskDetail' }));
   const backToTeamDetail = () => setState((s) => ({ ...s, screen: 'teamDetail', teamTab: 'overview' }));
+  const openTeamTasks = (groupId) => () => setState((s) => ({ ...s, teamId: groupId, teamTab: 'tasks', screen: 'teamTasks' }));
 
   const getEvalEntry = (groupCode, studentId, s) => {
     const key = groupCode + '|' + studentId;
@@ -322,7 +323,7 @@ export default function useAppState() {
     onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser, setMyTeamCount,
     onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
     onGroupCreated, onJoinDigit, onGroupJoined, copyCode,
-    openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, setTeamTab,
+    openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, openTeamTasks, setTeamTab,
     openTeam, goTeamTasks, openTaskDetail, backToTeamDetail,
     getEvalEntry, setEvalRating, setEvalNote, setLeaderboardPeriod,
     saveEvaluation, exportEvaluation,
