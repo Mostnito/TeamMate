@@ -111,7 +111,7 @@ export default function SignupScreen({ v }) {
         <IoMdArrowBack size={16} /><span>สมัครสมาชิก TeamMate</span>
       </div>
       <div style={{ maxWidth: 760, margin: '28px auto', background: '#fff', borderRadius: 16, padding: 32, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px' }}>
+        <div className="grid-2" style={{ gap: '18px 24px' }}>
           <div>
             <div style={label}>ชื่อจริง</div>
             <input value={v.su.firstName} onChange={v.onSuFirstName} placeholder="ชื่อจริง" style={input} />
@@ -171,7 +171,7 @@ export default function SignupScreen({ v }) {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginTop: 18 }}>
+        <div className="grid-2" style={{ gap: '18px 24px', marginTop: 18 }}>
           <div>
             <div style={label}>รหัสผ่าน</div>
             <input type="password" value={v.su.password} onChange={v.onSuPassword} placeholder="••••••" style={input} />

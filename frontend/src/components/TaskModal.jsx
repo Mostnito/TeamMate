@@ -4,7 +4,7 @@ export default function TaskModal({ v }) {
   if (!v.taskModalOpen) return null;
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={v.closeTaskModal}>
-      <div onClick={v.stopPropagation} style={{ width: 420, background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+      <div onClick={v.stopPropagation} style={{ width: 420, maxWidth: 'calc(100vw - 32px)', background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
         <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 18 }}>เพิ่มงานใหม่</div>
         <div style={{ marginBottom: 14 }}>
           <div style={label}>ชื่องาน</div>

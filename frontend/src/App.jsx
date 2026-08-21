@@ -40,6 +40,7 @@ export default function App() {
   const { state, actions } = useAppState();
   const v = deriveVals(state, actions);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -77,9 +78,12 @@ export default function App() {
       <ToastContainer position="top-right" autoClose={2500} newestOnTop closeOnClick theme="dark" />
       <TaskModal v={v} />
       <div style={{ width: '100%', height: '100vh', background: '#EFF6FF', display: 'flex', overflow: 'hidden', color: '#111827' }}>
-        {v.showSidebar && <Sidebar v={v} />}
+        {v.showSidebar && isDrawerOpen && (
+          <div className="sidebar-backdrop--open" onClick={() => setIsDrawerOpen(false)}></div>
+        )}
+        {v.showSidebar && <Sidebar v={v} isDrawerOpen={isDrawerOpen} onCloseDrawer={() => setIsDrawerOpen(false)} />}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
-          {v.showSidebar && <Header v={v} />}
+          {v.showSidebar && <Header v={v} onToggleDrawer={() => setIsDrawerOpen((o) => !o)} />}
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {v.isLogin && <LoginScreen v={v} />}
             {v.isSignup && <SignupScreen v={v} />}

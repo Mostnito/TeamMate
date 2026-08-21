@@ -37,7 +37,7 @@ export default function DashboardEmptyScreen({ v }) {
         <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 3 }}>เริ่มต้นสร้างหรือเข้าร่วมทีมเพื่อทำงานร่วมกัน</div>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, maxWidth: 920, width: '100%' }}>
+        <div className="grid-2" style={{ gap: 22, maxWidth: 920, width: '100%' }}>
           <div style={{ background: '#fff', borderRadius: 14, padding: '34px 28px', textAlign: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><IoMdAdd size={24} /></div>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 8 }}>สร้างทีมใหม่</div>

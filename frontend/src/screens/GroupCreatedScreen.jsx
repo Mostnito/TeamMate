@@ -3,7 +3,7 @@ import { IoMdCheckmarkCircle, IoMdCopy, IoMdShare, IoMdArrowForward } from 'reac
 export default function GroupCreatedScreen({ v }) {
   return (
     <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 360, background: '#fff', borderRadius: 16, padding: '34px 28px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
+      <div style={{ width: 360, maxWidth: 'calc(100vw - 32px)', background: '#fff', borderRadius: 16, padding: '34px 28px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
         <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#E8F8EE', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><IoMdCheckmarkCircle size={24} /></div>
         <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>สร้างกลุ่มสำเร็จ!</div>
         <div style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>แชร์โค้ดนี้ให้เพื่อนเข้ากลุ่ม</div>

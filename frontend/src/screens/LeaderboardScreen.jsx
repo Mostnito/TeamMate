@@ -12,7 +12,7 @@ export default function LeaderboardScreen({ v }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 22, maxWidth: 920, marginLeft: 'auto', marginRight: 'auto' }}>
+      <div className="grid-3" style={{ gap: 16, marginBottom: 22, maxWidth: 920, marginLeft: 'auto', marginRight: 'auto' }}>
         {v.leaderboardPodium.map((row) => (
           <div key={row.studentId} style={{ background: '#fff', borderRadius: 14, padding: '18px 20px', border: row.border, boxShadow: '0 6px 18px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>

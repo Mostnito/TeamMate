@@ -146,7 +146,7 @@ export default function SettingsScreen({ v }) {
           />
           <div style={{ fontSize: 11.5, color: '#6B7280' }}>คลิกหรือลากรูปมาวงเพื่อเปลี่ยนรูปโปรไฟล์<br />แนะนำขนาด 200×200px</div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="grid-2" style={{ gap: 12, marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 11.5, color: '#6B7280', marginBottom: 5 }}>ชื่อจริง</div>
             <input value={form.firstName} onChange={onField('firstName')} style={inputSm} />

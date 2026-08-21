@@ -164,7 +164,7 @@ export default function TeamDetailScreen({ v }) {
       />
       {deleteModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setDeleteModalOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 420, background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: 'calc(100vw - 32px)', background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#DC2626', marginBottom: 10 }}>ลบกลุ่ม {groupInfo.subjectName}</div>
             <div style={{ fontSize: 12.5, color: '#4B5A6E', lineHeight: 1.7, marginBottom: 16 }}>
               การลบกลุ่มจะลบงาน ไฟล์แนบ และการส่งงานทั้งหมดในกลุ่มนี้อย่างถาวร <b>ไม่สามารถกู้คืนได้</b>
@@ -214,7 +214,7 @@ export default function TeamDetailScreen({ v }) {
       </div>
 
       {v.teamTabOverview && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+        <div className="grid-3" style={{ gap: 16 }}>
           {members.map((m) => (
             <div key={m.userId} style={cardSm}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -247,7 +247,7 @@ export default function TeamDetailScreen({ v }) {
       )}
 
       {v.teamTabBoard && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 18 }}>
+        <div className="grid-4" style={{ gap: 18 }}>
           {boardColumns.map((col) => (
             <div
               key={col.key}

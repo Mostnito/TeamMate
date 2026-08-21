@@ -15,7 +15,7 @@ export default function ProgressScreen({ v }) {
           <div style={{ height: '100%', background: '#2563EB', borderRadius: 5, width: v.overallProgress + '%' }}></div>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="grid-2" style={{ gap: 20 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 12 }}>ความคืบหน้างาน</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

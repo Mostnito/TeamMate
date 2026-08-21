@@ -228,7 +228,7 @@ export default function TaskDetailScreen({ v }) {
     <div style={{ padding: '22px 28px', maxWidth: 760 }}>
       {editModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditModalOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 420, background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: 'calc(100vw - 32px)', background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 18 }}>แก้ไขงาน</div>
             <div style={{ marginBottom: 14 }}>
               <div style={label}>ชื่องาน</div>

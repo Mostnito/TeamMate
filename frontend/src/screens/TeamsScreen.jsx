@@ -49,7 +49,7 @@ export default function TeamsScreen({ v }) {
       ) : groups.length === 0 ? (
         <div style={{ fontSize: 13, color: '#6B7280' }}>ยังไม่มีทีม สร้างหรือเข้าร่วมทีมได้ที่ปุ่มด้านบน</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <div className="grid-2" style={{ gap: 18 }}>
           {groups.map((g, i) => {
             const { tint, accent } = PALETTE[g.groupId % PALETTE.length];
             const letter = (g.subjectName || '?').trim().charAt(0).toUpperCase();

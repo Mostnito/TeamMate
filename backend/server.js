@@ -644,6 +644,140 @@ app.get('/api/user/me/assigned-tasks', authenticateToken, async (req, res) => {
     }
 });
 
+//Get the fixed list of calendar event types (for the create-event form)
+app.get('/api/event-types', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT event_type_id, name, label_th, color, icon_name FROM event_types ORDER BY event_type_id');
+        res.json(result.rows.map((r) => ({
+            eventTypeId: r.event_type_id,
+            name: r.name,
+            labelTh: r.label_th,
+            color: r.color,
+            iconName: r.icon_name
+        })));
+    } catch (err) {
+        console.error('Error fetching event types:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+// resolves a 'YYYY-MM' query param (or the current month if missing/invalid) into a [start, end) UTC range
+function monthRange(monthParam) {
+    const now = new Date();
+    let year = now.getUTCFullYear();
+    let month = now.getUTCMonth() + 1;
+    if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+        const [y, m] = monthParam.split('-').map(Number);
+        if (m >= 1 && m <= 12) { year = y; month = m; }
+    }
+    const start = `${year}-${String(month).padStart(2, '0')}-01T00:00:00Z`;
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00Z`;
+    return { start, end };
+}
+
+//Get every calendar-relevant item for the current user this month, across all their teams:
+//real calendar_events plus task due dates shown as virtual "deadline" entries
+app.get('/api/user/me/calendar-events', authenticateToken, async (req, res) => {
+    try {
+        const { start, end } = monthRange(req.query.month);
+
+        const eventsResult = await pool.query(
+            `SELECT ce.calendar_event_id, ce.group_id, ce.title, ce.event_date, ce.end_date,
+                    et.label_th, et.color, g.subject_code, g.subject_name
+             FROM calendar_events ce
+             JOIN group_members gm ON gm.group_id = ce.group_id AND gm.user_id = $1
+             JOIN event_types et ON et.event_type_id = ce.event_type_id
+             JOIN groups g ON g.group_id = ce.group_id
+             WHERE ce.event_date >= $2 AND ce.event_date < $3
+             ORDER BY ce.event_date ASC`,
+            [req.user.userId, start, end]
+        );
+        const deadlinesResult = await pool.query(
+            `SELECT t.task_id, t.group_id, t.title, t.due_date, g.subject_code, g.subject_name
+             FROM tasks t
+             JOIN group_members gm ON gm.group_id = t.group_id AND gm.user_id = $1
+             JOIN groups g ON g.group_id = t.group_id
+             WHERE t.due_date >= $2 AND t.due_date < $3
+             ORDER BY t.due_date ASC`,
+            [req.user.userId, start, end]
+        );
+
+        const events = eventsResult.rows.map((r) => ({
+            kind: 'event',
+            id: r.calendar_event_id,
+            groupId: r.group_id,
+            groupLabel: `${r.subject_code} · ${r.subject_name}`,
+            title: r.title,
+            date: r.event_date.toISOString().slice(0, 10),
+            endDate: r.end_date ? r.end_date.toISOString().slice(0, 10) : null,
+            label: r.label_th,
+            color: r.color
+        }));
+        const deadlines = deadlinesResult.rows.map((r) => ({
+            kind: 'deadline',
+            id: r.task_id,
+            taskId: r.task_id,
+            groupId: r.group_id,
+            groupLabel: `${r.subject_code} · ${r.subject_name}`,
+            title: r.title,
+            date: r.due_date.toISOString().slice(0, 10),
+            endDate: null,
+            label: 'กำหนดส่งงาน',
+            color: '#DC2626'
+        }));
+
+        const merged = [...events, ...deadlines].sort((a, b) => a.date.localeCompare(b.date));
+        res.json(merged);
+    } catch (err) {
+        console.error('Error fetching calendar events:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Create a calendar event for a group (leader only)
+app.post('/api/group/:id/calendar-events', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { title, eventDate, endDate, eventTypeId } = req.body;
+    if (!title || !title.trim() || title.trim().length > 200) {
+        return res.status(400).json({ error: 'กรุณากรอกชื่อกิจกรรมให้ถูกต้อง (ไม่เกิน 200 ตัวอักษร)' });
+    }
+    if (!eventDate || Number.isNaN(Date.parse(eventDate))) {
+        return res.status(400).json({ error: 'กรุณาเลือกวันที่ให้ถูกต้อง' });
+    }
+    const eventTypeIdInt = parseInt(eventTypeId, 10);
+    if (!Number.isInteger(eventTypeIdInt)) {
+        return res.status(400).json({ error: 'กรุณาเลือกประเภทกิจกรรม' });
+    }
+
+    try {
+        if (!(await isGroupLeader(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่เพิ่มกิจกรรมได้' });
+        }
+        const typeCheck = await pool.query('SELECT 1 FROM event_types WHERE event_type_id = $1', [eventTypeIdInt]);
+        if (typeCheck.rows.length === 0) {
+            return res.status(400).json({ error: 'ประเภทกิจกรรมไม่ถูกต้อง' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO calendar_events (group_id, title, event_date, end_date, event_type_id, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING calendar_event_id`,
+            [groupId, title.trim(), toUtcMidnight(eventDate), endDate ? toUtcMidnight(endDate) : null, eventTypeIdInt, req.user.userId]
+        );
+
+        console.log('Calendar event created:', result.rows[0].calendar_event_id, 'in group', groupId);
+        res.status(201).json({ message: 'เพิ่มกิจกรรมสำเร็จ', calendarEventId: result.rows[0].calendar_event_id });
+    } catch (err) {
+        console.error('Error creating calendar event:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Get group members
 app.get('/api/group/:id/members', authenticateToken, async (req, res) => {
     const groupId = parseInt(req.params.id, 10);
@@ -1514,3 +1648,4 @@ app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
 server.listen(5000, () => {
     console.log(`Server is running on port 5000`);
 });
+

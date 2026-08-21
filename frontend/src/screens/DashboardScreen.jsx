@@ -56,7 +56,7 @@ export default function DashboardScreen({ v }) {
         <div style={{ fontWeight: 700, fontSize: 15 }}>ยินดีต้อนรับ, {v.firstNameShort}</div>
         <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 3 }}>นี่คือภาพรวมงานและทีมของคุณวันนี้</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 22 }}>
+      <div className="grid-3" style={{ gap: 16, marginBottom: 22 }}>
         <div style={{ background: '#fff', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: 11.5, color: '#6B7280', fontWeight: 600 }}>ทีมทั้งหมด</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginTop: 4 }}>{isLoading ? '-' : teams.length}</div>
@@ -70,7 +70,7 @@ export default function DashboardScreen({ v }) {
           <div style={{ fontSize: 22, fontWeight: 700, color: '#2563EB', marginTop: 4 }}>0</div>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18 }}>
+      <div className="grid-dashboard-split" style={{ gap: 18 }}>
         <div style={card}>
           <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 12 }}>งานที่ใกล้ครบกำหนด</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

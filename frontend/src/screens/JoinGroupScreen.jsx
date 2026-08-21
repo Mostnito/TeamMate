@@ -36,7 +36,7 @@ export default function JoinGroupScreen({ v }) {
         <IoMdArrowBack size={15} /><span>เข้าร่วมทีม</span>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 360, background: '#fff', borderRadius: 16, padding: '34px 28px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
+        <div style={{ width: 360, maxWidth: 'calc(100vw - 32px)', background: '#fff', borderRadius: 16, padding: '34px 28px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
           <div style={{ width: 56, height: 56, borderRadius: 14, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><IoMdArrowForward size={24} /></div>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 8 }}>เข้าร่วมทีม</div>
           <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18, lineHeight: 1.6 }}>ใส่รหัสทีม 6 หลักที่ได้รับ<br />จากหัวหน้ากลุ่มเพื่อเข้าร่วม</div>

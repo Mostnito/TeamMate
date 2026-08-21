@@ -1,9 +1,17 @@
+import { useEffect } from 'react';
 import logo from '../assets/teammate-logo.png';
 import { IoMdSettings, IoMdLogOut } from 'react-icons/io';
 
-export default function Sidebar({ v }) {
+export default function Sidebar({ v, isDrawerOpen, onCloseDrawer }) {
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') onCloseDrawer(); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDrawerOpen, onCloseDrawer]);
+
   return (
-    <div style={{ width: 220, minWidth: 220, background: '#FFFFFF', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div className={`app-sidebar${isDrawerOpen ? ' app-sidebar--open' : ''}`} style={{ width: 220, minWidth: 220, background: '#FFFFFF', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '20px 18px', borderBottom: '1px solid #F3F4F6' }}>
         <img src={logo} style={{ width: 34, height: 34, objectFit: 'contain' }} alt="TeamMate logo" />
         <div>
@@ -15,7 +23,7 @@ export default function Sidebar({ v }) {
         {v.navItems.map((item) => (
           <div
             key={item.key}
-            onClick={item.onClick}
+            onClick={() => { item.onClick(); onCloseDrawer(); }}
             style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, background: item.active ? '#F3F8FF' : 'transparent' }}
           >
             <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><item.icon size={15} color={item.iconColor} /></span>
@@ -25,7 +33,7 @@ export default function Sidebar({ v }) {
       </div>
       <div style={{ padding: 10, borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div
-          onClick={v.goSettings}
+          onClick={() => { v.goSettings(); onCloseDrawer(); }}
           style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, color: v.settingsTextColor }}
         >
           <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><IoMdSettings size={15} color={v.settingsIconColor} /></span>

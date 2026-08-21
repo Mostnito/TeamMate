@@ -43,7 +43,7 @@ export default function ProjectsScreen({ v }) {
       ) : groups.length === 0 ? (
         <div style={{ fontSize: 13, color: '#6B7280' }}>ยังไม่มีทีม</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <div className="grid-2" style={{ gap: 18 }}>
           {groups.map((g) => {
             const { tint, accent } = PALETTE[g.groupId % PALETTE.length];
             const letter = (g.subjectName || '?').trim().charAt(0).toUpperCase();

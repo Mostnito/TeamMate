@@ -48,14 +48,14 @@ export default function LoginScreen({ v }) {
   };
 
   return (
-    <div style={{ minHeight: '100%', display: 'flex' }}>
+    <div className="login-panes" style={{ minHeight: '100%' }}>
       <div style={{ flex: 1, background: 'linear-gradient(160deg,#2563EB,#1D4ED8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, color: '#fff' }}>
         <img src={logo} style={{ width: 96, height: 96, objectFit: 'contain', background: '#fff', borderRadius: 20, padding: 14, marginBottom: 22 }} alt="TeamMate logo" />
         <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: 0.5 }}>TeamMate</div>
         <div style={{ fontSize: 13.5, color: '#DBEAFE', marginTop: 10, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>จัดการงานกลุ่ม ทีม และไทม์ไลน์ของคุณในที่เดียว</div>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-        <div style={{ width: 360 }}>
+        <div style={{ width: 360, maxWidth: 'calc(100vw - 32px)' }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 6 }}>เข้าสู่ระบบ</div>
           <div style={{ fontSize: 12.5, color: '#6B7280', marginBottom: 26 }}>กรอกข้อมูลบัญชีของคุณเพื่อดำเนินการต่อ</div>
           <div style={{ marginBottom: 16 }}>
