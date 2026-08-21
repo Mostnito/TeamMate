@@ -619,6 +619,31 @@ app.get('/api/user/me/tasks', authenticateToken, async (req, res) => {
     }
 });
 
+//Get every task personally assigned to the current user, across all their teams, any status (for Assignments page)
+app.get('/api/user/me/assigned-tasks', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT t.task_id, t.group_id, t.title, t.status, t.due_date, g.subject_code, g.subject_name
+             FROM tasks t
+             JOIN groups g ON g.group_id = t.group_id
+             WHERE t.assigned_to = $1
+             ORDER BY t.due_date ASC NULLS LAST`,
+            [req.user.userId]
+        );
+        res.json(result.rows.map((r) => ({
+            taskId: r.task_id,
+            groupId: r.group_id,
+            groupLabel: `${r.subject_code} · ${r.subject_name}`,
+            title: r.title,
+            status: r.status,
+            dueDate: r.due_date ? r.due_date.toISOString().slice(0, 10) : null
+        })));
+    } catch (err) {
+        console.error('Error fetching assigned tasks:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Get group members
 app.get('/api/group/:id/members', authenticateToken, async (req, res) => {
     const groupId = parseInt(req.params.id, 10);
