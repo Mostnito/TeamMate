@@ -34,6 +34,9 @@ import CalendarScreen from './screens/CalendarScreen.jsx';
 import LeaderboardScreen from './screens/LeaderboardScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
 import AdminScreen from './screens/AdminScreen.jsx';
+import AdminUsersScreen from './screens/AdminUsersScreen.jsx';
+import AdminGroupsScreen from './screens/AdminGroupsScreen.jsx';
+import AdminActivityScreen from './screens/AdminActivityScreen.jsx';
 import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 
 export default function App() {
@@ -109,6 +112,9 @@ export default function App() {
             {v.isLeaderboard && <LeaderboardScreen v={v} />}
             {v.isSettings && <SettingsScreen v={v} />}
             {v.isAdmin && <AdminScreen v={v} />}
+            {v.isAdminUsers && <AdminUsersScreen v={v} />}
+            {v.isAdminGroups && <AdminGroupsScreen v={v} />}
+            {v.isAdminActivity && <AdminActivityScreen v={v} />}
             {v.isAdminSettings && <AdminSettingsScreen v={v} />}
           </div>
         </div>

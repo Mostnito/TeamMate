@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { card, cardSm, btnGhostBlue, btnPrimary, btnSecondary, label, input } from '../styles/common.js';
 import { IoMdArrowBack, IoMdAdd } from 'react-icons/io';
 import CreateTaskModal from '../components/CreateTaskModal.jsx';
+import ReportModal from '../components/ReportModal.jsx';
 
 const BOARD_COLUMNS = [
   { key: 'pending', label: 'สิ่งที่ต้องทำ', color: '#6B7280' },
@@ -23,6 +24,8 @@ export default function TeamDetailScreen({ v }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [isReporting, setIsReporting] = useState(false);
 
   useEffect(() => {
     if (v.teamId == null) {
@@ -74,6 +77,18 @@ export default function TeamDetailScreen({ v }) {
         refetchTasks();
       })
       .catch((err) => toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'));
+  };
+
+  const handleSubmitReport = (detail) => {
+    const token = localStorage.getItem('token');
+    setIsReporting(true);
+    axios.post(`/api/group/${v.teamId}/reports`, { type: 'user', targetId: reportTarget.userId, detail }, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        toast.success(res.data.message || 'ส่งรายงานสำเร็จ');
+        setReportTarget(null);
+      })
+      .catch((err) => toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'))
+      .finally(() => setIsReporting(false));
   };
 
   const handleDeleteGroup = () => {
@@ -162,6 +177,13 @@ export default function TeamDetailScreen({ v }) {
         onClose={() => setBoardModalOpen(false)}
         onSubmit={handleSubmitBoardTask}
       />
+      <ReportModal
+        isOpen={!!reportTarget}
+        title="รายงานสมาชิก"
+        isSubmitting={isReporting}
+        onClose={() => setReportTarget(null)}
+        onSubmit={handleSubmitReport}
+      />
       {deleteModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setDeleteModalOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: 'calc(100vw - 32px)', background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
@@ -227,9 +249,14 @@ export default function TeamDetailScreen({ v }) {
                     <div style={{ fontSize: 10.5, color: '#6B7280' }}>{m.studentId}</div>
                   </div>
                 </div>
-                {isLeader && m.role !== 'leader' && (
-                  <span onClick={() => handleKickMember(m.userId, `${m.firstName} ${m.lastName}`)} style={{ fontSize: 10.5, color: '#DC2626', fontWeight: 600, cursor: 'pointer' }}>เตะออก</span>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {m.userId !== v.currentUserId && (
+                    <span onClick={() => setReportTarget(m)} style={{ fontSize: 10.5, color: '#9CA3AF', fontWeight: 600, cursor: 'pointer' }}>รายงาน</span>
+                  )}
+                  {isLeader && m.role !== 'leader' && (
+                    <span onClick={() => handleKickMember(m.userId, `${m.firstName} ${m.lastName}`)} style={{ fontSize: 10.5, color: '#DC2626', fontWeight: 600, cursor: 'pointer' }}>เตะออก</span>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
                 {m.skills.map((sk) => (

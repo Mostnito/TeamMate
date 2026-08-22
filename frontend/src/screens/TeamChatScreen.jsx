@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
-import { IoMdArrowBack, IoMdSend } from 'react-icons/io';
+import { IoMdArrowBack, IoMdSend, IoMdFlag } from 'react-icons/io';
+import ReportModal from '../components/ReportModal.jsx';
 
 export default function TeamChatScreen({ v }) {
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [reportTarget, setReportTarget] = useState(null);
+  const [isReporting, setIsReporting] = useState(false);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -47,12 +50,31 @@ export default function TeamChatScreen({ v }) {
 
   const handleKeyDown = (e) => { if (e.key === 'Enter') handleSend(); };
 
+  const handleSubmitReport = (detail) => {
+    const token = localStorage.getItem('token');
+    setIsReporting(true);
+    axios.post(`/api/group/${v.teamId}/reports`, { type: 'chat_message', targetId: reportTarget.messageId, detail }, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        toast.success(res.data.message || 'ส่งรายงานสำเร็จ');
+        setReportTarget(null);
+      })
+      .catch((err) => toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'))
+      .finally(() => setIsReporting(false));
+  };
+
   if (isLoading) {
     return <div style={{ padding: '22px 28px', fontSize: 13, color: '#6B7280' }}>กำลังโหลด...</div>;
   }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <ReportModal
+        isOpen={!!reportTarget}
+        title="รายงานข้อความ"
+        isSubmitting={isReporting}
+        onClose={() => setReportTarget(null)}
+        onSubmit={handleSubmitReport}
+      />
       <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 10, background: '#fff' }}>
         <span style={{ cursor: 'pointer', color: '#374151', display: 'flex' }} onClick={v.backToTeamDetail}><IoMdArrowBack size={16} /></span>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>แชททีม</div>
@@ -66,7 +88,14 @@ export default function TeamChatScreen({ v }) {
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '60%' }}>
                 <div style={{ background: mine ? '#2563EB' : '#F3F4F6', color: mine ? '#fff' : '#111827', padding: '10px 14px', borderRadius: 12, fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
               </div>
-              <div style={{ fontSize: 10, color: '#AEB9C6', marginTop: 4 }}>{msg.senderName} · {new Date(msg.sentAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
+              <div style={{ fontSize: 10, color: '#AEB9C6', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{msg.senderName} · {new Date(msg.sentAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
+                {!mine && (
+                  <span onClick={() => setReportTarget(msg)} title="รายงานข้อความนี้" style={{ cursor: 'pointer', color: '#AEB9C6', display: 'flex' }}>
+                    <IoMdFlag size={11} />
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}

@@ -186,6 +186,7 @@ app.post('/api/register', async (req, res) => {
 
         await client.query('COMMIT');
         console.log('User registered successfully:', email);
+        logActivity(userId, 'register', 'user', userId, req);
         res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ' });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -221,8 +222,12 @@ app.post('/api/login', async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
         }
+        if (!user.is_active) {
+            return res.status(403).json({ error: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
+        }
 
         const token = jwt.sign({ userId: user.user_id }, process.env.TOKEN_SECRET, { expiresIn: '1h' });
+        logActivity(user.user_id, 'login', null, null, req);
         res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, message: 'เข้าสู่ระบบสำเร็จ' });
     } catch (err) {
         console.error('Error during login:', err);
@@ -232,11 +237,14 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/check', authenticateToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT user_id, nickname, student_id, system_role, avatar_path FROM users WHERE user_id = $1', [req.user.userId]);
+        const result = await pool.query('SELECT user_id, nickname, student_id, system_role, avatar_path, is_active FROM users WHERE user_id = $1', [req.user.userId]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
         }
         const user = result.rows[0];
+        if (!user.is_active) {
+            return res.status(403).json({ error: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
+        }
         res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path });
     } catch (err) {
         console.error('Error fetching current user:', err);
@@ -334,6 +342,7 @@ app.put('/api/user/:id', authenticateToken, async (req, res) => {
 
         await client.query('COMMIT');
         console.log('User profile updated successfully:', userId);
+        logActivity(req.user.userId, 'update_profile', 'user', userId, req);
         res.json({ message: 'บันทึกการตั้งค่าแล้ว' });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -384,6 +393,7 @@ app.post('/api/user/:id/avatar', authenticateToken, (req, res) => {
             }
 
             console.log('Avatar updated successfully:', userId);
+            logActivity(req.user.userId, 'update_avatar', 'user', userId, req);
             res.json({ avatarUrl, message: 'อัปโหลดรูปโปรไฟล์สำเร็จ' });
         } catch (dbErr) {
             fs.unlink(req.file.path, () => {});
@@ -474,6 +484,7 @@ app.post('/api/group/create', authenticateToken, async (req, res) => {
         }
 
         console.log('Group created successfully:', group.group_id);
+        logActivity(req.user.userId, 'create_group', 'group', group.group_id, req);
         res.status(201).json({
             groupId: group.group_id,
             groupCode: group.group_code,
@@ -525,6 +536,7 @@ app.post('/api/group/join', authenticateToken, async (req, res) => {
         );
 
         console.log('User joined group successfully:', req.user.userId, '->', group.group_id);
+        logActivity(req.user.userId, 'join_group', 'group', group.group_id, req);
         res.status(201).json({
             groupId: group.group_id,
             groupCode: group.group_code,
@@ -547,6 +559,348 @@ async function isGroupLeader(userId, groupId) {
     const result = await pool.query(`SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2 AND role = 'leader'`, [groupId, userId]);
     return result.rows.length > 0;
 }
+async function isAdmin(userId) {
+    const result = await pool.query(`SELECT 1 FROM users WHERE user_id = $1 AND system_role = 'admin'`, [userId]);
+    return result.rows.length > 0;
+}
+
+// fire-and-forget audit log write - must never throw outward or block the action it's attached to
+async function logActivity(userId, action, targetType, targetId, req) {
+    try {
+        await pool.query(
+            'INSERT INTO activity_logs (user_id, action, target_type, target_id, ip_address) VALUES ($1, $2, $3, $4, $5)',
+            [userId, action, targetType || null, targetId || null, req.ip]
+        );
+    } catch (err) {
+        console.error('Error logging activity:', err);
+    }
+}
+
+const REPORT_TYPE_LABELS = { chat_message: 'ข้อความในแชท', user: 'ผู้ใช้งาน', file: 'ไฟล์แนบ' };
+
+//Get moderation reports (admin only), optionally filtered by status
+app.get('/api/admin/reports', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const status = req.query.status;
+        const params = [];
+        let where = '';
+        if (status) {
+            params.push(status);
+            where = 'WHERE r.status = $1';
+        }
+        const result = await pool.query(
+            `SELECT r.report_id, r.type, r.target_id, r.detail, r.status, r.created_at, r.group_id,
+                    u.firstname AS reporter_firstname, u.lastname AS reporter_lastname,
+                    g.subject_code, g.subject_name
+             FROM reports r
+             JOIN users u ON u.user_id = r.reporter_id
+             JOIN groups g ON g.group_id = r.group_id
+             ${where}
+             ORDER BY r.created_at DESC`,
+            params
+        );
+        const rows = result.rows;
+
+        // resolve what was actually reported: the message content (chat_message) or the reported person's name (user)
+        const messageIds = rows.filter((r) => r.type === 'chat_message').map((r) => r.target_id);
+        const userIds = rows.filter((r) => r.type === 'user').map((r) => r.target_id);
+
+        const messageTargets = {};
+        if (messageIds.length) {
+            const msgRows = await pool.query(
+                `SELECT m.message_id, m.content, u.firstname, u.lastname
+                 FROM messages m JOIN users u ON u.user_id = m.user_id
+                 WHERE m.message_id = ANY($1)`,
+                [messageIds]
+            );
+            msgRows.rows.forEach((m) => { messageTargets[m.message_id] = { content: m.content, senderName: `${m.firstname} ${m.lastname}` }; });
+        }
+        const userTargets = {};
+        if (userIds.length) {
+            const userRows = await pool.query('SELECT user_id, firstname, lastname FROM users WHERE user_id = ANY($1)', [userIds]);
+            userRows.rows.forEach((u) => { userTargets[u.user_id] = `${u.firstname} ${u.lastname}`; });
+        }
+
+        res.json(rows.map((r) => ({
+            reportId: r.report_id,
+            type: r.type,
+            typeLabel: REPORT_TYPE_LABELS[r.type] || r.type,
+            detail: r.detail,
+            reporterName: `${r.reporter_firstname} ${r.reporter_lastname}`,
+            groupLabel: `${r.subject_code} · ${r.subject_name}`,
+            status: r.status,
+            createdAt: r.created_at,
+            targetMessageContent: r.type === 'chat_message' ? (messageTargets[r.target_id]?.content ?? '(ข้อความถูกลบแล้ว)') : null,
+            targetUserName: r.type === 'chat_message'
+                ? (messageTargets[r.target_id]?.senderName ?? null)
+                : r.type === 'user' ? (userTargets[r.target_id] ?? '(บัญชีถูกลบแล้ว)') : null
+        })));
+    } catch (err) {
+        console.error('Error fetching admin reports:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Resolve a moderation report (admin only) - approve or reject
+app.patch('/api/admin/reports/:id', authenticateToken, async (req, res) => {
+    const reportId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(reportId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { status } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const result = await pool.query(
+            `UPDATE reports SET status = $1, resolved_by = $2, resolved_at = now() WHERE report_id = $3 RETURNING report_id`,
+            [status, req.user.userId, reportId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบรายงานนี้' });
+        }
+        console.log('Report resolved:', reportId, '->', status, 'by', req.user.userId);
+        logActivity(req.user.userId, 'resolve_report', 'report', reportId, req);
+        res.json({ message: 'บันทึกผลการตรวจสอบสำเร็จ' });
+    } catch (err) {
+        console.error('Error resolving report:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+const USER_ROLE_VALUES = ['student', 'advisor', 'admin'];
+
+//Get every user on the platform (admin only)
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const result = await pool.query(
+            `SELECT user_id, firstname, lastname, nickname, student_id, email, system_role, is_active, avatar_path
+             FROM users ORDER BY firstname ASC`
+        );
+        res.json(result.rows.map((r) => ({
+            userId: r.user_id,
+            firstName: r.firstname,
+            lastName: r.lastname,
+            nickname: r.nickname,
+            studentId: r.student_id,
+            email: r.email,
+            role: r.system_role,
+            isActive: r.is_active,
+            avatarUrl: r.avatar_path
+        })));
+    } catch (err) {
+        console.error('Error fetching admin user list:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Edit a user's profile fields / role / active status (admin only)
+app.patch('/api/admin/users/:id', authenticateToken, async (req, res) => {
+    const targetUserId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(targetUserId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { firstName, lastName, nickname, studentId, role, isActive } = req.body;
+    if (role !== undefined && !USER_ROLE_VALUES.includes(role)) {
+        return res.status(400).json({ error: 'บทบาทไม่ถูกต้อง' });
+    }
+    if (targetUserId === req.user.userId && (isActive === false || (role !== undefined && role !== 'admin'))) {
+        return res.status(400).json({ error: 'ไม่สามารถปิดใช้งานหรือเปลี่ยนบทบาทของบัญชีตัวเองได้' });
+    }
+
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+
+        const fields = [];
+        const params = [];
+        const addField = (column, value) => {
+            params.push(value);
+            fields.push(`${column} = $${params.length}`);
+        };
+        if (firstName !== undefined) addField('firstname', firstName.trim());
+        if (lastName !== undefined) addField('lastname', lastName.trim());
+        if (nickname !== undefined) addField('nickname', nickname.trim());
+        if (studentId !== undefined) addField('student_id', studentId || null);
+        if (role !== undefined) addField('system_role', role);
+        if (isActive !== undefined) addField('is_active', isActive);
+
+        if (fields.length === 0) {
+            return res.status(400).json({ error: 'ไม่มีข้อมูลที่ต้องการแก้ไข' });
+        }
+
+        params.push(targetUserId);
+        const result = await pool.query(
+            `UPDATE users SET ${fields.join(', ')} WHERE user_id = $${params.length} RETURNING user_id`,
+            params
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบผู้ใช้งานนี้' });
+        }
+
+        console.log('Admin updated user:', targetUserId, 'by', req.user.userId);
+        const activityAction = isActive !== undefined ? (isActive ? 'activate_user' : 'deactivate_user') : role !== undefined ? 'change_user_role' : 'admin_update_user';
+        logActivity(req.user.userId, activityAction, 'user', targetUserId, req);
+        res.json({ message: 'บันทึกการแก้ไขสำเร็จ' });
+    } catch (err) {
+        console.error('Error updating user (admin):', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Get every group on the platform (admin only)
+app.get('/api/admin/groups', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const result = await pool.query(
+            `SELECT g.group_id, g.group_code, g.subject_code, g.subject_name, g.advisor_name, g.created_at,
+                    (SELECT COUNT(*)::int FROM group_members gm WHERE gm.group_id = g.group_id) AS member_count,
+                    (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id) AS task_count
+             FROM groups g
+             ORDER BY g.created_at DESC`
+        );
+        res.json(result.rows.map((r) => ({
+            groupId: r.group_id,
+            groupCode: r.group_code,
+            subjectCode: r.subject_code,
+            subjectName: r.subject_name,
+            advisorName: r.advisor_name,
+            memberCount: r.member_count,
+            taskCount: r.task_count,
+            createdAt: r.created_at
+        })));
+    } catch (err) {
+        console.error('Error fetching admin group list:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Get one group's info + member list (admin only)
+app.get('/api/admin/groups/:id', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const groupResult = await pool.query(
+            'SELECT group_id, group_code, subject_code, subject_name, advisor_name FROM groups WHERE group_id = $1',
+            [groupId]
+        );
+        if (groupResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบกลุ่มนี้' });
+        }
+        const membersResult = await pool.query(
+            `SELECT u.user_id, u.firstname, u.lastname, u.nickname, u.student_id, gm.role
+             FROM group_members gm
+             JOIN users u ON u.user_id = gm.user_id
+             WHERE gm.group_id = $1
+             ORDER BY gm.role = 'leader' DESC, u.firstname`,
+            [groupId]
+        );
+        const g = groupResult.rows[0];
+        res.json({
+            groupId: g.group_id,
+            groupCode: g.group_code,
+            subjectCode: g.subject_code,
+            subjectName: g.subject_name,
+            advisorName: g.advisor_name,
+            members: membersResult.rows.map((r) => ({
+                userId: r.user_id,
+                firstName: r.firstname,
+                lastName: r.lastname,
+                nickname: r.nickname,
+                studentId: r.student_id,
+                role: r.role
+            }))
+        });
+    } catch (err) {
+        console.error('Error fetching admin group detail:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Get the activity/audit log, paginated (admin only)
+app.get('/api/admin/activity-logs', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+
+        const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+        const before = req.query.before ? parseInt(req.query.before, 10) : null;
+        const action = req.query.action || null;
+        const startDate = req.query.startDate ? toUtcMidnight(req.query.startDate) : null;
+        const endDate = req.query.endDate ? toUtcMidnight(req.query.endDate) : null; // exclusive upper bound, see below
+        const userSearch = req.query.userSearch ? `%${req.query.userSearch.trim()}%` : null;
+
+        const result = await pool.query(
+            `SELECT al.activity_log_id, al.user_id, al.action, al.target_type, al.target_id, al.ip_address, al.created_at,
+                    u.firstname, u.lastname, u.nickname
+             FROM activity_logs al
+             LEFT JOIN users u ON u.user_id = al.user_id
+             WHERE ($1::int IS NULL OR al.activity_log_id < $1)
+               AND ($2::varchar IS NULL OR al.action = $2)
+               AND ($3::timestamptz IS NULL OR al.created_at >= $3)
+               AND ($4::timestamptz IS NULL OR al.created_at < $4 + interval '1 day')
+               AND ($5::varchar IS NULL OR u.firstname ILIKE $5 OR u.lastname ILIKE $5 OR u.nickname ILIKE $5)
+             ORDER BY al.activity_log_id DESC
+             LIMIT $6`,
+            [before, action, startDate, endDate, userSearch, limit]
+        );
+        const rows = result.rows;
+
+        const idsByType = {};
+        rows.forEach((r) => {
+            if (!r.target_type || !r.target_id) return;
+            if (!idsByType[r.target_type]) idsByType[r.target_type] = new Set();
+            idsByType[r.target_type].add(r.target_id);
+        });
+
+        const targetLabels = {};
+        if (idsByType.task) {
+            const taskRows = await pool.query('SELECT task_id, title FROM tasks WHERE task_id = ANY($1)', [[...idsByType.task]]);
+            taskRows.rows.forEach((t) => { targetLabels[`task:${t.task_id}`] = t.title; });
+        }
+        if (idsByType.group) {
+            const groupRows = await pool.query('SELECT group_id, subject_name FROM groups WHERE group_id = ANY($1)', [[...idsByType.group]]);
+            groupRows.rows.forEach((g) => { targetLabels[`group:${g.group_id}`] = g.subject_name; });
+        }
+        if (idsByType.user) {
+            const userRows = await pool.query('SELECT user_id, firstname, lastname FROM users WHERE user_id = ANY($1)', [[...idsByType.user]]);
+            userRows.rows.forEach((u) => { targetLabels[`user:${u.user_id}`] = `${u.firstname} ${u.lastname}`; });
+        }
+
+        res.json(rows.map((r) => ({
+            activityLogId: r.activity_log_id,
+            userId: r.user_id,
+            actorName: r.user_id ? `${r.firstname} ${r.lastname} (${r.nickname})` : '(บัญชีที่ถูกลบแล้ว)',
+            action: r.action,
+            targetType: r.target_type,
+            targetId: r.target_id,
+            targetLabel: r.target_type && r.target_id ? (targetLabels[`${r.target_type}:${r.target_id}`] || '(ถูกลบแล้ว)') : null,
+            ipAddress: r.ip_address,
+            createdAt: r.created_at
+        })));
+    } catch (err) {
+        console.error('Error fetching activity logs:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
 
 //Task attachment upload
 const taskAttachmentDir = path.join(__dirname, 'uploads', 'tasks');
@@ -830,6 +1184,7 @@ app.post('/api/group/:id/calendar-events', authenticateToken, async (req, res) =
         );
 
         console.log('Calendar event created:', result.rows[0].calendar_event_id, 'in group', groupId);
+        logActivity(req.user.userId, 'create_calendar_event', 'group', groupId, req);
         res.status(201).json({ message: 'เพิ่มกิจกรรมสำเร็จ', calendarEventId: result.rows[0].calendar_event_id });
     } catch (err) {
         console.error('Error creating calendar event:', err);
@@ -995,6 +1350,7 @@ app.post('/api/group/:id/evaluations', authenticateToken, async (req, res) => {
         await client.query('COMMIT');
 
         console.log('Peer evaluations saved:', req.user.userId, '->', [...submittedIds].join(','), 'in group', groupId);
+        logActivity(req.user.userId, 'submit_peer_evaluation', 'group', groupId, req);
         res.json({ message: 'บันทึกการประเมินทั้งหมดสำเร็จ' });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -1088,7 +1444,8 @@ app.delete('/api/group/:id/members/:userId', authenticateToken, async (req, res)
     try {
         const isSelf = req.user.userId === targetUserId;
         const isLeaderCaller = await isGroupLeader(req.user.userId, groupId);
-        if (!isLeaderCaller && !isSelf) {
+        const isAdminCaller = await isAdmin(req.user.userId);
+        if (!isLeaderCaller && !isSelf && !isAdminCaller) {
             return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ทำรายการนี้' });
         }
 
@@ -1108,6 +1465,7 @@ app.delete('/api/group/:id/members/:userId', authenticateToken, async (req, res)
         await client.query('COMMIT');
 
         console.log(isSelf ? 'Member left group:' : 'Member kicked from group:', targetUserId, 'from', groupId);
+        logActivity(req.user.userId, isSelf ? 'leave_group' : 'kick_member', 'group', groupId, req);
         res.json({ message: isSelf ? 'ออกจากกลุ่มสำเร็จ' : 'เตะสมาชิกออกจากกลุ่มสำเร็จ' });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -1132,8 +1490,8 @@ app.delete('/api/group/:id', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'ไม่พบกลุ่มนี้' });
         }
 
-        if (!(await isGroupLeader(req.user.userId, groupId))) {
-            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่ลบกลุ่มได้' });
+        if (!(await isGroupLeader(req.user.userId, groupId)) && !(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมหรือผู้ดูแลระบบเท่านั้นที่ลบกลุ่มได้' });
         }
         if (!confirmCode || confirmCode !== groupResult.rows[0].subject_code) {
             return res.status(400).json({ error: 'รหัสวิชายืนยันไม่ถูกต้อง' });
@@ -1151,6 +1509,7 @@ app.delete('/api/group/:id', authenticateToken, async (req, res) => {
         attachmentsResult.rows.forEach((a) => fs.unlink(path.join(__dirname, a.file_path), () => {}));
 
         console.log('Group deleted successfully:', groupId);
+        logActivity(req.user.userId, 'delete_group', 'group', groupId, req);
         res.json({ message: 'ลบกลุ่มสำเร็จ' });
     } catch (err) {
         console.error('Error deleting group:', err);
@@ -1229,6 +1588,46 @@ app.get('/api/group/:id/messages', authenticateToken, async (req, res) => {
     }
 });
 
+const REPORT_TYPE_VALUES = ['chat_message', 'user'];
+
+//Submit a moderation report (chat message or user) - feeds the admin moderation queue
+app.post('/api/group/:id/reports', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { type, targetId, detail } = req.body;
+    if (!REPORT_TYPE_VALUES.includes(type)) {
+        return res.status(400).json({ error: 'ประเภทการรายงานไม่ถูกต้อง' });
+    }
+    const targetIdInt = parseInt(targetId, 10);
+    if (!Number.isInteger(targetIdInt)) {
+        return res.status(400).json({ error: 'ไม่พบสิ่งที่ต้องการรายงาน' });
+    }
+    if (type === 'user' && targetIdInt === req.user.userId) {
+        return res.status(400).json({ error: 'ไม่สามารถรายงานตัวเองได้' });
+    }
+
+    try {
+        if (!(await isGroupMember(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO reports (type, group_id, reporter_id, target_id, detail)
+             VALUES ($1, $2, $3, $4, $5) RETURNING report_id`,
+            [type, groupId, req.user.userId, targetIdInt, (detail || '').trim() || null]
+        );
+
+        console.log('Report submitted:', result.rows[0].report_id, 'type', type, 'by', req.user.userId);
+        logActivity(req.user.userId, 'submit_report', 'report', result.rows[0].report_id, req);
+        res.status(201).json({ message: 'ส่งรายงานสำเร็จ ทีมงานจะตรวจสอบโดยเร็วที่สุด' });
+    } catch (err) {
+        console.error('Error submitting report:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Create task
 const TASK_STATUS_VALUES = ['pending', 'in_progress', 'completed', 'overdue', 'cancelled', 'under_review'];
 
@@ -1271,6 +1670,7 @@ app.post('/api/group/:id/tasks', authenticateToken, async (req, res) => {
         const task = result.rows[0];
 
         console.log('Task created successfully:', task.task_id);
+        logActivity(req.user.userId, 'create_task', 'task', task.task_id, req);
         res.status(201).json({
             taskId: task.task_id,
             title: task.title,
@@ -1406,6 +1806,7 @@ app.patch('/api/task/:id', authenticateToken, async (req, res) => {
         const task = result.rows[0];
 
         console.log('Task updated successfully:', task.task_id);
+        logActivity(req.user.userId, 'update_task', 'task', task.task_id, req);
         res.json({
             taskId: task.task_id,
             title: task.title,
@@ -1445,6 +1846,7 @@ app.delete('/api/task/:id', authenticateToken, async (req, res) => {
 
         await pool.query('DELETE FROM tasks WHERE task_id = $1', [taskId]);
         console.log('Task deleted successfully:', taskId);
+        logActivity(req.user.userId, 'delete_task', 'task', taskId, req);
         res.json({ message: 'ลบงานสำเร็จ' });
     } catch (err) {
         console.error('Error deleting task:', err);
@@ -1496,6 +1898,7 @@ app.post('/api/task/:id/attachments', authenticateToken, (req, res) => {
                     [taskId, req.file.originalname, filePath, req.user.userId]
                 );
                 console.log('Task attachment uploaded successfully:', taskId);
+                logActivity(req.user.userId, 'upload_attachment', 'task', taskId, req);
                 res.status(201).json({
                     taskAttachmentId: result.rows[0].task_attachment_id,
                     fileName: result.rows[0].file_name,
@@ -1548,6 +1951,7 @@ app.delete('/api/task/:id/attachments/:attachmentId', authenticateToken, async (
         fs.unlink(path.join(__dirname, attachmentResult.rows[0].file_path), () => {});
 
         console.log('Task attachment deleted successfully:', attachmentId);
+        logActivity(req.user.userId, 'delete_attachment', 'task', taskId, req);
         res.json({ message: 'ลบไฟล์สำเร็จ' });
     } catch (err) {
         console.error('Error deleting task attachment:', err);
@@ -1583,6 +1987,7 @@ app.patch('/api/task/:id/start', authenticateToken, async (req, res) => {
         const task = result.rows[0];
 
         console.log('Task started by assignee:', taskId);
+        logActivity(req.user.userId, 'start_task', 'task', taskId, req);
         res.json({
             taskId: task.task_id,
             title: task.title,
@@ -1634,6 +2039,7 @@ app.post('/api/task/:id/submission', authenticateToken, async (req, res) => {
         await pool.query(`UPDATE tasks SET status = 'under_review' WHERE task_id = $1`, [taskId]);
 
         console.log('Task submission saved successfully:', taskId);
+        logActivity(req.user.userId, 'submit_task', 'task', taskId, req);
         res.json({
             taskId: result.rows[0].task_id,
             submittedBy: result.rows[0].submitted_by,
@@ -1687,6 +2093,7 @@ app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
         await pool.query('UPDATE tasks SET status = $1 WHERE task_id = $2', [newTaskStatus, taskId]);
 
         console.log('Task review saved successfully:', taskId);
+        logActivity(req.user.userId, 'review_task', 'task', taskId, req);
         res.status(201).json({
             reviewId: result.rows[0].task_review_id,
             reviewedBy: result.rows[0].reviewed_by,
