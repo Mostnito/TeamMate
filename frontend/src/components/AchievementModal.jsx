@@ -99,7 +99,7 @@ export default function AchievementModal({ isOpen, achievement, isSubmitting, on
           <textarea value={form.description} onChange={onField('description')} placeholder="อธิบายเงื่อนไขการได้รับความสำเร็จนี้" style={textarea}></textarea>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <div style={label}>ตัวชี้วัด (metric)</div>
+          <div style={label}>ประเภท</div>
           <select value={form.metric} onChange={onField('metric')} style={input}>
             {METRIC_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -108,11 +108,11 @@ export default function AchievementModal({ isOpen, achievement, isSubmitting, on
         </div>
         <div className="grid-2" style={{ gap: 12, marginBottom: 6 }}>
           <div>
-            <div style={label}>เป้าหมาย (threshold)</div>
+            <div style={label}>จำนวน</div>
             <input type="number" min="1" value={form.threshold} onChange={onField('threshold')} style={input} />
           </div>
           <div>
-            <div style={label}>คะแนนรางวัล</div>
+            <div style={label}>คะแนน</div>
             <input type="number" min="0" value={form.pointsReward} onChange={onField('pointsReward')} style={input} />
           </div>
         </div>
