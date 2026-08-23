@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { card, btnPrimary, btnGhostBlue } from '../styles/common.js';
-import { IoMdAdd } from 'react-icons/io';
+import { IoMdAdd, IoMdCopy, IoMdCheckmark } from 'react-icons/io';
 
 const PALETTE = [
   { tint: '#EFF6FF', accent: '#2563EB' },
@@ -14,6 +14,13 @@ const PALETTE = [
 export default function TeamsScreen({ v }) {
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopyCode = (groupId, code) => {
+    if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
+    setCopiedId(groupId);
+    setTimeout(() => setCopiedId((id) => (id === groupId ? null : id)), 1500);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -61,6 +68,15 @@ export default function TeamsScreen({ v }) {
                 </div>
                 <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 10 }}>{g.subjectCode}</div>
                 <div style={{ fontSize: 11.5, color: '#6B7280', marginBottom: 12 }}>{g.memberCount} สมาชิก &nbsp;·&nbsp; {g.taskCount} งาน</div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10.5, color: '#9CA3AF', marginBottom: 4 }}>รหัสเชิญทีม (ให้เพื่อนใช้รหัสนี้เพื่อเข้าร่วมทีมนี้)</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1.5, color: '#1D4ED8', background: '#EFF6FF', padding: '4px 10px', borderRadius: 6 }}>{g.groupCode}</span>
+                    <span onClick={() => handleCopyCode(g.groupId, g.groupCode)} style={{ cursor: 'pointer', color: copiedId === g.groupId ? '#16A34A' : '#6B7280', display: 'flex', alignItems: 'center' }}>
+                      {copiedId === g.groupId ? <IoMdCheckmark size={15} /> : <IoMdCopy size={15} />}
+                    </span>
+                  </div>
+                </div>
                 <button onClick={v.openTeam(g.groupId)} style={{ ...btnGhostBlue, width: '100%', padding: 9 }}>ดูและเลือกทีม</button>
               </div>
             );

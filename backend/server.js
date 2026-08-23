@@ -302,6 +302,46 @@ app.get('/api/user/:id', authenticateToken, async (req, res) => {
     }
 });
 
+//Get a user's achievements - all achievements, earned or locked-with-progress, own data only
+app.get('/api/user/:id/achievements', authenticateToken, async (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(userId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    if (req.user.userId !== userId) {
+        return res.status(403).json({ error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' });
+    }
+    try {
+        const [achievementsResult, earnedResult, metrics] = await Promise.all([
+            pool.query('SELECT achievement_id, code, name, description, img_path, metric, threshold, points_reward FROM achievements ORDER BY threshold ASC'),
+            pool.query('SELECT achievement_id, earned_at FROM user_achievements WHERE user_id = $1', [userId]),
+            getAllMetricValues(userId)
+        ]);
+        const earnedMap = new Map(earnedResult.rows.map((r) => [r.achievement_id, r.earned_at]));
+        res.json(achievementsResult.rows.map((a) => {
+            const currentValue = metrics[a.metric] || 0;
+            const earnedAt = earnedMap.get(a.achievement_id) || null;
+            return {
+                achievementId: a.achievement_id,
+                code: a.code,
+                name: a.name,
+                description: a.description,
+                imgPath: a.img_path,
+                metric: a.metric,
+                threshold: a.threshold,
+                pointsReward: a.points_reward,
+                currentValue,
+                isEarned: !!earnedAt,
+                earnedAt,
+                progressPercent: Math.min(100, Math.round((currentValue / a.threshold) * 100))
+            };
+        }));
+    } catch (err) {
+        console.error('Error fetching achievements:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Update user profile
 app.put('/api/user/:id', authenticateToken, async (req, res) => {
     const userId = parseInt(req.params.id, 10);
@@ -497,6 +537,8 @@ app.post('/api/group/create', authenticateToken, async (req, res) => {
 
         console.log('Group created successfully:', group.group_id);
         logActivity(req.user.userId, 'create_group', 'group', group.group_id, req);
+        checkAndAwardAchievements(req.user.userId, 'groups_created');
+        checkAndAwardAchievements(req.user.userId, 'groups_joined');
         res.status(201).json({
             groupId: group.group_id,
             groupCode: group.group_code,
@@ -549,6 +591,7 @@ app.post('/api/group/join', authenticateToken, async (req, res) => {
 
         console.log('User joined group successfully:', req.user.userId, '->', group.group_id);
         logActivity(req.user.userId, 'join_group', 'group', group.group_id, req);
+        checkAndAwardAchievements(req.user.userId, 'groups_joined');
         res.status(201).json({
             groupId: group.group_id,
             groupCode: group.group_code,
@@ -585,6 +628,54 @@ async function logActivity(userId, action, targetType, targetId, req) {
         );
     } catch (err) {
         console.error('Error logging activity:', err);
+    }
+}
+
+// each metric is a single count query keyed by user_id - used both to award achievements and to show progress
+const METRIC_QUERIES = {
+    groups_created: `SELECT COUNT(*)::int FROM groups WHERE created_by = $1`,
+    groups_joined: `SELECT COUNT(*)::int FROM group_members WHERE user_id = $1`,
+    tasks_submitted: `SELECT COUNT(*)::int FROM task_submissions WHERE submitted_by = $1`,
+    tasks_reviewed: `SELECT COUNT(*)::int FROM task_reviews WHERE reviewed_by = $1`,
+    evaluations_submitted: `SELECT COUNT(*)::int FROM peer_evaluations WHERE evaluator_id = $1`,
+    calendar_events_created: `SELECT COUNT(*)::int FROM calendar_events WHERE created_by = $1`
+};
+
+async function getAllMetricValues(userId) {
+    const entries = Object.entries(METRIC_QUERIES);
+    const results = await Promise.all(entries.map(([, query]) => pool.query(query, [userId])));
+    return Object.fromEntries(entries.map(([metric], i) => [metric, results[i].rows[0].count]));
+}
+
+// fire-and-forget achievement check - must never throw outward or block the action it's attached to.
+// awards points only on an actual new insert (RETURNING check), never on a re-trigger of an already-earned achievement.
+async function checkAndAwardAchievements(userId, metric) {
+    try {
+        const query = METRIC_QUERIES[metric];
+        if (!query) return;
+        const valueResult = await pool.query(query, [userId]);
+        const value = valueResult.rows[0].count;
+        const candidates = await pool.query(
+            `SELECT achievement_id, name, points_reward FROM achievements
+             WHERE metric = $1 AND threshold <= $2
+             AND achievement_id NOT IN (SELECT achievement_id FROM user_achievements WHERE user_id = $3)`,
+            [metric, value, userId]
+        );
+        for (const row of candidates.rows) {
+            const awarded = await pool.query(
+                `INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2)
+                 ON CONFLICT (user_id, achievement_id) DO NOTHING RETURNING user_achievement_id`,
+                [userId, row.achievement_id]
+            );
+            if (awarded.rows.length > 0 && row.points_reward > 0) {
+                await pool.query(
+                    `INSERT INTO points (user_id, points_earned, reason) VALUES ($1, $2, $3)`,
+                    [userId, row.points_reward, `ได้รับความสำเร็จ: ${row.name}`]
+                );
+            }
+        }
+    } catch (err) {
+        console.error('Error checking achievements:', err);
     }
 }
 
@@ -1254,6 +1345,7 @@ app.post('/api/group/:id/calendar-events', authenticateToken, async (req, res) =
 
         console.log('Calendar event created:', result.rows[0].calendar_event_id, 'in group', groupId);
         logActivity(req.user.userId, 'create_calendar_event', 'group', groupId, req);
+        checkAndAwardAchievements(req.user.userId, 'calendar_events_created');
         res.status(201).json({ message: 'เพิ่มกิจกรรมสำเร็จ', calendarEventId: result.rows[0].calendar_event_id });
     } catch (err) {
         console.error('Error creating calendar event:', err);
@@ -1420,6 +1512,7 @@ app.post('/api/group/:id/evaluations', authenticateToken, async (req, res) => {
 
         console.log('Peer evaluations saved:', req.user.userId, '->', [...submittedIds].join(','), 'in group', groupId);
         logActivity(req.user.userId, 'submit_peer_evaluation', 'group', groupId, req);
+        checkAndAwardAchievements(req.user.userId, 'evaluations_submitted');
         res.json({ message: 'บันทึกการประเมินทั้งหมดสำเร็จ' });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -2109,6 +2202,7 @@ app.post('/api/task/:id/submission', authenticateToken, async (req, res) => {
 
         console.log('Task submission saved successfully:', taskId);
         logActivity(req.user.userId, 'submit_task', 'task', taskId, req);
+        checkAndAwardAchievements(req.user.userId, 'tasks_submitted');
         res.json({
             taskId: result.rows[0].task_id,
             submittedBy: result.rows[0].submitted_by,
@@ -2137,14 +2231,18 @@ app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
     }
 
     try {
-        const taskResult = await pool.query('SELECT group_id FROM tasks WHERE task_id = $1', [taskId]);
+        const taskResult = await pool.query('SELECT group_id, status FROM tasks WHERE task_id = $1', [taskId]);
         if (taskResult.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบงานนี้' });
         }
-        const groupId = taskResult.rows[0].group_id;
+        const { group_id: groupId, status: taskStatus } = taskResult.rows[0];
 
         if (!(await isGroupLeader(req.user.userId, groupId))) {
             return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่ตรวจงานได้' });
+        }
+
+        if (taskStatus !== 'under_review') {
+            return res.status(400).json({ error: 'งานนี้ไม่ได้อยู่ในสถานะรอตรวจ (อาจถูกตรวจไปแล้ว หรือยังไม่ได้ส่งงาน)' });
         }
 
         const submissionResult = await pool.query('SELECT 1 FROM task_submissions WHERE task_id = $1', [taskId]);
@@ -2163,6 +2261,7 @@ app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
 
         console.log('Task review saved successfully:', taskId);
         logActivity(req.user.userId, 'review_task', 'task', taskId, req);
+        checkAndAwardAchievements(req.user.userId, 'tasks_reviewed');
         res.status(201).json({
             reviewId: result.rows[0].task_review_id,
             reviewedBy: result.rows[0].reviewed_by,

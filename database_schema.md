@@ -210,6 +210,28 @@ CREATE TABLE reports (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE achievements (
+    achievement_id SERIAL PRIMARY KEY,
+    code VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    img_path VARCHAR(255),
+    metric VARCHAR(50) NOT NULL,
+    threshold INTEGER NOT NULL,
+    points_reward INTEGER NOT NULL DEFAULT 0,
+
+);
+
+CREATE TABLE user_achievements (
+    user_achievement_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    achievement_id INTEGER NOT NULL REFERENCES achievements(achievement_id) ON DELETE CASCADE,
+    earned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, achievement_id)
+);
+
+
+
 CREATE INDEX idx_users_gender_id ON users(gender_id);
 CREATE INDEX idx_groups_created_by ON groups(created_by);
 CREATE INDEX idx_group_members_group_id ON group_members(group_id);
@@ -232,5 +254,9 @@ CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_target ON notifications(target_type, target_id);
 CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
 CREATE INDEX idx_activity_logs_target ON activity_logs(target_type, target_id);
+
+CREATE INDEX idx_user_achievements_user_id ON user_achievements(user_id);
+CREATE INDEX idx_user_achievements_achievement_id ON user_achievements(achievement_id);
+CREATE INDEX idx_achievements_metric ON achievements(metric);
  
 COMMIT;
