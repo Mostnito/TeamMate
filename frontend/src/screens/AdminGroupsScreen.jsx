@@ -4,10 +4,34 @@ import { toast } from 'react-toastify';
 import { card, cardSm, label, input, btnSecondary, avatar } from '../styles/common.js';
 import { IoMdSearch, IoMdTrash } from 'react-icons/io';
 
+const SORT_GROUPS = [
+  {
+    label: 'เวลาสร้าง',
+    options: [
+      { key: 'created_newest', label: 'ใหม่ล่าสุด', compare: (a, b) => new Date(b.createdAt) - new Date(a.createdAt) },
+      { key: 'created_oldest', label: 'เก่าที่สุด', compare: (a, b) => new Date(a.createdAt) - new Date(b.createdAt) }
+    ]
+  },
+  {
+    label: 'จำนวนสมาชิก',
+    options: [
+      { key: 'members_most', label: 'มากที่สุด', compare: (a, b) => b.memberCount - a.memberCount },
+      { key: 'members_least', label: 'น้อยที่สุด', compare: (a, b) => a.memberCount - b.memberCount }
+    ]
+  }
+];
+const SORT_OPTIONS = Object.fromEntries(SORT_GROUPS.flatMap((g) => g.options).map((o) => [o.key, o]));
+
 export default function AdminGroupsScreen() {
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeSorts, setActiveSorts] = useState(['created_newest', null]);
+  const toggleSort = (groupIndex, key) => setActiveSorts((prev) => {
+    const next = [...prev];
+    next[groupIndex] = prev[groupIndex] === key ? null : key;
+    return next;
+  });
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -65,11 +89,21 @@ export default function AdminGroupsScreen() {
   };
 
   const q = search.trim().toLowerCase();
-  const filteredGroups = q === '' ? groups : groups.filter((g) =>
+  const filteredGroups = (q === '' ? groups : groups.filter((g) =>
     g.subjectCode.toLowerCase().includes(q) ||
     g.subjectName.toLowerCase().includes(q) ||
     g.advisorName.toLowerCase().includes(q)
-  );
+  )).slice();
+  const activeComparators = activeSorts.filter(Boolean).map((k) => SORT_OPTIONS[k].compare);
+  if (activeComparators.length > 0) {
+    filteredGroups.sort((a, b) => {
+      for (const cmp of activeComparators) {
+        const result = cmp(a, b);
+        if (result !== 0) return result;
+      }
+      return 0;
+    });
+  }
 
   return (
     <div style={{ padding: '22px 28px' }}>
@@ -135,11 +169,27 @@ export default function AdminGroupsScreen() {
       )}
 
       <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>กลุ่มทั้งหมด</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>ภาพรวมกลุ่มเรียนทั้งหมดในระบบ คลิกเพื่อดูสมาชิก หรือกดไอคอนถังขยะเพื่อลบกลุ่ม</div>
+      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>ภาพรวมกลุ่มทั้งหมดในระบบ คลิกเพื่อดูสมาชิก หรือกดถังขยะเพื่อลบกลุ่ม</div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 9, padding: '9px 14px', marginBottom: 18, maxWidth: 360, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
-        <IoMdSearch size={14} color="#6B7280" />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหารหัสวิชา ชื่อวิชา หรืออาจารย์" style={{ border: 'none', background: 'transparent', fontSize: 13, width: '100%', color: '#374151' }} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 9, padding: '9px 14px', maxWidth: 360, flex: 1, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+          <IoMdSearch size={14} color="#6B7280" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหารหัสวิชา ชื่อวิชา หรืออาจารย์" style={{ border: 'none', background: 'transparent', fontSize: 13, width: '100%', color: '#374151' }} />
+        </div>
+        {SORT_GROUPS.map((group, groupIndex) => (
+          <div key={group.label} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', borderRadius: 9, padding: 5, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+            <span style={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600, paddingLeft: 8 }}>{group.label}</span>
+            {group.options.map((o) => (
+              <div
+                key={o.key}
+                onClick={() => toggleSort(groupIndex, o.key)}
+                style={{ padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: activeSorts[groupIndex] === o.key ? '#2563EB' : 'transparent', color: activeSorts[groupIndex] === o.key ? '#fff' : '#6B7280' }}
+              >
+                {o.label}
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       {isLoading ? (

@@ -97,7 +97,7 @@ export default function AdminSettingsScreen({ v }) {
   return (
     <div style={{ padding: '22px 28px', maxWidth: 640 }}>
       <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>การตั้งค่าผู้ดูแลระบบ</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 20 }}>จัดการข้อมูลส่วนตัวและนโยบายการคัดกรอง</div>
+      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 20 }}>จัดการข้อมูลส่วนตัว</div>
 
       <div style={{ ...card, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>ข้อมูลผู้ดูแล</div>
@@ -152,24 +152,6 @@ export default function AdminSettingsScreen({ v }) {
             {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูลส่วนตัว'}
           </button>
         </div>
-      </div>
-
-      <div style={{ ...card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>นโยบายการคัดกรอง</div>
-        <div>
-          <div style={{ fontSize: 11.5, color: '#6B7280', marginBottom: 5 }}>คำต้องห้ามในแชท (คั่นด้วยเครื่องหมายจุลภาค)</div>
-          <input value={v.policy.bannedWords} onChange={v.onPolicyBannedWords} style={inputSm} />
-        </div>
-      </div>
-
-      <div style={{ ...card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 6 }}>Log retention</div>
-        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 10 }}>ระยะเวลาเก็บ error log และ security log (วัน)</div>
-        <input type="number" value={v.policy.logRetentionDays} onChange={v.onPolicyLogRetention} style={{ ...inputSm, width: 160 }} />
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={v.saveAdminSettings} style={btnPrimary}>{v.saveAdminSettingsLabel}</button>
       </div>
     </div>
   );

@@ -88,8 +88,8 @@ export default function AdminActivityScreen() {
 
   return (
     <div style={{ padding: '22px 28px' }}>
-      <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>บันทึกกิจกรรม</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>ประวัติการกระทำของผู้ใช้ทั้งหมดในระบบ</div>
+      <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>ประวัติการใช้งาน</div>
+      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>ประวัติกิจกรรมของผู้ใช้ทั้งหมดในระบบ</div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 18 }}>
         <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} style={{ padding: '9px 14px', borderRadius: 9, border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, color: '#374151', maxWidth: 260 }}>

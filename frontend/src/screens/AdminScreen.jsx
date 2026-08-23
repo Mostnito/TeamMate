@@ -41,8 +41,8 @@ export default function AdminScreen() {
 
   return (
     <div style={{ padding: '22px 28px' }}>
-      <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 6 }}>คัดกรองการกระทำ</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>ตรวจสอบรายงานที่ผู้ใช้แจ้งเข้ามา</div>
+      <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 6 }}>รายงาน</div>
+      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>ตรวจสอบรายงานจากผู้ใช้</div>
 
       <div style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', width: 200, boxShadow: '0 4px 14px rgba(0,0,0,0.04)', marginBottom: 20 }}>
         <div style={{ fontSize: 11.5, color: '#6B7280', fontWeight: 600 }}>รอตรวจสอบ</div>

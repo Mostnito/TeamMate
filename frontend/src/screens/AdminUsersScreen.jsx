@@ -6,11 +6,34 @@ import { IoMdSearch } from 'react-icons/io';
 
 const ROLE_LABELS = { student: 'นักเรียน', advisor: 'อาจารย์', admin: 'แอดมิน' };
 const EMPTY_FORM = { firstName: '', lastName: '', nickname: '', studentId: '' };
+const SORT_GROUPS = [
+  {
+    label: 'เวลาสร้าง',
+    options: [
+      { key: 'created_newest', label: 'ใหม่ล่าสุด', compare: (a, b) => new Date(b.createdAt) - new Date(a.createdAt) },
+      { key: 'created_oldest', label: 'เก่าที่สุด', compare: (a, b) => new Date(a.createdAt) - new Date(b.createdAt) }
+    ]
+  },
+  {
+    label: 'คะแนน',
+    options: [
+      { key: 'points_most', label: 'มากที่สุด', compare: (a, b) => b.points - a.points },
+      { key: 'points_least', label: 'น้อยที่สุด', compare: (a, b) => a.points - b.points }
+    ]
+  }
+];
+const SORT_OPTIONS = Object.fromEntries(SORT_GROUPS.flatMap((g) => g.options).map((o) => [o.key, o]));
 
 export default function AdminUsersScreen({ v }) {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeSorts, setActiveSorts] = useState(['created_newest', null]);
+  const toggleSort = (groupIndex, key) => setActiveSorts((prev) => {
+    const next = [...prev];
+    next[groupIndex] = prev[groupIndex] === key ? null : key;
+    return next;
+  });
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
@@ -62,12 +85,22 @@ export default function AdminUsersScreen({ v }) {
   };
 
   const q = search.trim().toLowerCase();
-  const filteredUsers = q === '' ? users : users.filter((u) =>
+  const filteredUsers = (q === '' ? users : users.filter((u) =>
     `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) ||
     u.nickname.toLowerCase().includes(q) ||
     (u.studentId || '').toLowerCase().includes(q) ||
     u.email.toLowerCase().includes(q)
-  );
+  )).slice();
+  const activeComparators = activeSorts.filter(Boolean).map((k) => SORT_OPTIONS[k].compare);
+  if (activeComparators.length > 0) {
+    filteredUsers.sort((a, b) => {
+      for (const cmp of activeComparators) {
+        const result = cmp(a, b);
+        if (result !== 0) return result;
+      }
+      return 0;
+    });
+  }
 
   return (
     <div style={{ padding: '22px 28px' }}>
@@ -102,11 +135,27 @@ export default function AdminUsersScreen({ v }) {
       )}
 
       <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>สมาชิกทั้งหมด</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>จัดการข้อมูล บทบาท และสถานะการใช้งานของสมาชิก</div>
+      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 18 }}>จัดการข้อมูลและสถานะของสมาชิก</div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 9, padding: '9px 14px', marginBottom: 18, maxWidth: 360, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
-        <IoMdSearch size={14} color="#6B7280" />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาชื่อ ชื่อเล่น รหัสนิสิต หรืออีเมล" style={{ border: 'none', background: 'transparent', fontSize: 13, width: '100%', color: '#374151' }} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 9, padding: '9px 14px', maxWidth: 360, flex: 1, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+          <IoMdSearch size={14} color="#6B7280" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาชื่อ ชื่อเล่น รหัสนิสิต หรืออีเมล" style={{ border: 'none', background: 'transparent', fontSize: 13, width: '100%', color: '#374151' }} />
+        </div>
+        {SORT_GROUPS.map((group, groupIndex) => (
+          <div key={group.label} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', borderRadius: 9, padding: 5, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+            <span style={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600, paddingLeft: 8 }}>{group.label}</span>
+            {group.options.map((o) => (
+              <div
+                key={o.key}
+                onClick={() => toggleSort(groupIndex, o.key)}
+                style={{ padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: activeSorts[groupIndex] === o.key ? '#2563EB' : 'transparent', color: activeSorts[groupIndex] === o.key ? '#fff' : '#6B7280' }}
+              >
+                {o.label}
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       {isLoading ? (
@@ -129,6 +178,7 @@ export default function AdminUsersScreen({ v }) {
                   <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{u.firstName} {u.lastName} ({u.nickname})</div>
                   <div style={{ fontSize: 11, color: '#6B7280' }}>{u.studentId || 'ไม่มีรหัสนิสิต'} &nbsp;·&nbsp; {u.email}</div>
                 </div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#2563EB', background: '#EFF6FF', padding: '4px 10px', borderRadius: 6, whiteSpace: 'nowrap' }}>{u.points} คะแนน</span>
                 {!u.isActive && <span style={{ fontSize: 11, fontWeight: 600, color: '#DC2626', background: '#FEE2E2', padding: '4px 10px', borderRadius: 6 }}>ปิดใช้งาน</span>}
                 <select value={u.role} onChange={(e) => handleRoleChange(u, e.target.value)} disabled={isSelf} style={{ ...input, width: 130, padding: '8px 10px', opacity: isSelf ? 0.6 : 1 }}>
                   {Object.entries(ROLE_LABELS).map(([key, l]) => <option key={key} value={key}>{l}</option>)}

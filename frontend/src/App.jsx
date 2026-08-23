@@ -37,6 +37,7 @@ import AdminScreen from './screens/AdminScreen.jsx';
 import AdminUsersScreen from './screens/AdminUsersScreen.jsx';
 import AdminGroupsScreen from './screens/AdminGroupsScreen.jsx';
 import AdminActivityScreen from './screens/AdminActivityScreen.jsx';
+import AdminModerationScreen from './screens/AdminModerationScreen.jsx';
 import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 
 export default function App() {
@@ -115,6 +116,7 @@ export default function App() {
             {v.isAdminUsers && <AdminUsersScreen v={v} />}
             {v.isAdminGroups && <AdminGroupsScreen v={v} />}
             {v.isAdminActivity && <AdminActivityScreen v={v} />}
+            {v.isAdminModeration && <AdminModerationScreen />}
             {v.isAdminSettings && <AdminSettingsScreen v={v} />}
           </div>
         </div>

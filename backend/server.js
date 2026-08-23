@@ -34,10 +34,14 @@ io.on('connection', (socket) => {
         if (!(await isGroupMember(socket.userId, groupId))) return;
 
         try {
+            const settingsResult = await pool.query(`SELECT value FROM system_settings WHERE key = 'banned_words'`);
+            const bannedWords = (settingsResult.rows[0]?.value || '').split(',').map((w) => w.trim()).filter(Boolean);
+            const { censored, flagged } = censorContent(content.trim(), bannedWords);
+
             const result = await pool.query(
                 `INSERT INTO messages (group_id, user_id, content) VALUES ($1, $2, $3)
                  RETURNING message_id, group_id, user_id, content, sent_at`,
-                [groupId, socket.userId, content.trim()]
+                [groupId, socket.userId, censored]
             );
             const userResult = await pool.query('SELECT firstname, lastname, avatar_path FROM users WHERE user_id = $1', [socket.userId]);
             const msg = result.rows[0];
@@ -51,6 +55,14 @@ io.on('connection', (socket) => {
                 content: msg.content,
                 sentAt: msg.sent_at
             });
+
+            if (flagged.length > 0) {
+                await pool.query(
+                    `INSERT INTO reports (type, group_id, reporter_id, target_id, detail) VALUES ($1, $2, $3, $4, $5)`,
+                    ['chat_message', groupId, socket.userId, msg.message_id, `ระบบตรวจพบคำไม่เหมาะสมโดยอัตโนมัติ: ${flagged.join(', ')}`]
+                );
+                logActivity(socket.userId, 'submit_report', 'report', msg.message_id, { ip: socket.handshake.address });
+            }
         } catch (err) {
             console.error('Error sending chat message:', err);
         }
@@ -576,7 +588,58 @@ async function logActivity(userId, action, targetType, targetId, req) {
     }
 }
 
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+function censorContent(content, bannedWords) {
+    let censored = content;
+    const flagged = [];
+    for (const word of bannedWords) {
+        if (!word) continue;
+        const pattern = new RegExp(escapeRegex(word), 'gi');
+        if (pattern.test(content)) {
+            flagged.push(word);
+            censored = censored.replace(new RegExp(escapeRegex(word), 'gi'), (match) => '*'.repeat(match.length));
+        }
+    }
+    return { censored, flagged };
+}
+
 const REPORT_TYPE_LABELS = { chat_message: 'ข้อความในแชท', user: 'ผู้ใช้งาน', file: 'ไฟล์แนบ' };
+
+//Get banned-words moderation policy (admin only)
+app.get('/api/admin/settings/banned-words', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const result = await pool.query(`SELECT value FROM system_settings WHERE key = 'banned_words'`);
+        res.json({ bannedWords: result.rows[0]?.value || '' });
+    } catch (err) {
+        console.error('Error fetching banned words:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์' });
+    }
+});
+
+//Update banned-words moderation policy (admin only)
+app.put('/api/admin/settings/banned-words', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const bannedWords = typeof req.body.bannedWords === 'string' ? req.body.bannedWords : '';
+        await pool.query(
+            `INSERT INTO system_settings (key, value) VALUES ('banned_words', $1)
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+            [bannedWords]
+        );
+        logActivity(req.user.userId, 'update_banned_words', null, null, req);
+        res.json({ message: 'บันทึกนโยบายการคัดกรองแล้ว' });
+    } catch (err) {
+        console.error('Error updating banned words:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์' });
+    }
+});
 
 //Get moderation reports (admin only), optionally filtered by status
 app.get('/api/admin/reports', authenticateToken, async (req, res) => {
@@ -683,8 +746,12 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
         }
         const result = await pool.query(
-            `SELECT user_id, firstname, lastname, nickname, student_id, email, system_role, is_active, avatar_path
-             FROM users ORDER BY firstname ASC`
+            `SELECT u.user_id, u.firstname, u.lastname, u.nickname, u.student_id, u.email, u.system_role, u.is_active, u.avatar_path, u.created_at,
+                    COALESCE(SUM(p.points_earned), 0)::int AS points
+             FROM users u
+             LEFT JOIN points p ON p.user_id = u.user_id
+             GROUP BY u.user_id
+             ORDER BY u.firstname ASC`
         );
         res.json(result.rows.map((r) => ({
             userId: r.user_id,
@@ -695,7 +762,9 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
             email: r.email,
             role: r.system_role,
             isActive: r.is_active,
-            avatarUrl: r.avatar_path
+            avatarUrl: r.avatar_path,
+            createdAt: r.created_at,
+            points: r.points
         })));
     } catch (err) {
         console.error('Error fetching admin user list:', err);
