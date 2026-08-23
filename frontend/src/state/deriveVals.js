@@ -52,7 +52,8 @@ export default function deriveVals(state, actions) {
     { key: 'admin', label: 'รายงาน', icon: IoMdFlag },
     { key: 'adminModeration', label: 'การคัดกรอง', icon: IoMdChatbubbles },
     { key: 'adminUsers', label: 'สมาชิก', icon: IoMdPeople },
-    { key: 'adminGroups', label: 'กลุ่ม', icon: IoMdGrid }
+    { key: 'adminGroups', label: 'กลุ่ม', icon: IoMdGrid },
+    { key: 'adminAchievements', label: 'จัดการความสำเร็จ', icon: IoMdRibbon }
   ] : [
     { key: 'dashboard', label: 'แดชบอร์ด', icon: IoMdHome },
     { key: 'teams', label: 'ทีม', icon: IoMdPeople },
@@ -62,7 +63,7 @@ export default function deriveVals(state, actions) {
     { key: 'leaderboard', label: 'อันดับคะแนน', icon: IoMdStar },
     { key: 'achievements', label: 'ความสำเร็จ', icon: IoMdRibbon }
   ];
-  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', leaderboard: 'leaderboard', achievements: 'achievements', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
+  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', adminAchievements: 'adminAchievements', leaderboard: 'leaderboard', achievements: 'achievements', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
 
   const leaderboardPeriodDefs = [
     { key: 'all', label: 'ทั้งหมด' }, { key: 'monthly', label: 'รายเดือน' }, { key: 'weekly', label: 'รายสัปดาห์' }, { key: 'daily', label: 'รายวัน' }
@@ -282,6 +283,7 @@ export default function deriveVals(state, actions) {
     isAdminUsers: s.screen === 'adminUsers', isAdminGroups: s.screen === 'adminGroups', isAdminActivity: s.screen === 'adminActivity',
     isAdminModeration: s.screen === 'adminModeration',
     isAchievements: s.screen === 'achievements',
+    isAdminAchievements: s.screen === 'adminAchievements',
     isAdminSettings: s.screen === 'adminSettings',
     hasModerationItems: moderationItems.length > 0, noModerationItems: moderationItems.length === 0, moderationItems,
     errorLogs: errorLogsData, securityAlerts: securityAlertsData,

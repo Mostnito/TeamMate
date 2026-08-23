@@ -39,6 +39,7 @@ import AdminGroupsScreen from './screens/AdminGroupsScreen.jsx';
 import AdminActivityScreen from './screens/AdminActivityScreen.jsx';
 import AdminModerationScreen from './screens/AdminModerationScreen.jsx';
 import AchievementsScreen from './screens/AchievementsScreen.jsx';
+import AdminAchievementsScreen from './screens/AdminAchievementsScreen.jsx';
 import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 
 export default function App() {
@@ -119,6 +120,7 @@ export default function App() {
             {v.isAdminActivity && <AdminActivityScreen v={v} />}
             {v.isAdminModeration && <AdminModerationScreen />}
             {v.isAchievements && <AchievementsScreen v={v} />}
+            {v.isAdminAchievements && <AdminAchievementsScreen />}
             {v.isAdminSettings && <AdminSettingsScreen v={v} />}
           </div>
         </div>

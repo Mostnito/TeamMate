@@ -29,9 +29,9 @@ export default function AdminUsersScreen({ v }) {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeSorts, setActiveSorts] = useState(['created_newest', null]);
-  const toggleSort = (groupIndex, key) => setActiveSorts((prev) => {
+  const setSort = (groupIndex, key) => setActiveSorts((prev) => {
     const next = [...prev];
-    next[groupIndex] = prev[groupIndex] === key ? null : key;
+    next[groupIndex] = key || null;
     return next;
   });
   const [editingUser, setEditingUser] = useState(null);
@@ -143,17 +143,14 @@ export default function AdminUsersScreen({ v }) {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาชื่อ ชื่อเล่น รหัสนิสิต หรืออีเมล" style={{ border: 'none', background: 'transparent', fontSize: 13, width: '100%', color: '#374151' }} />
         </div>
         {SORT_GROUPS.map((group, groupIndex) => (
-          <div key={group.label} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', borderRadius: 9, padding: 5, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
-            <span style={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600, paddingLeft: 8 }}>{group.label}</span>
-            {group.options.map((o) => (
-              <div
-                key={o.key}
-                onClick={() => toggleSort(groupIndex, o.key)}
-                style={{ padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: activeSorts[groupIndex] === o.key ? '#2563EB' : 'transparent', color: activeSorts[groupIndex] === o.key ? '#fff' : '#6B7280' }}
-              >
-                {o.label}
-              </div>
-            ))}
+          <div key={group.label} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 9, padding: '6px 12px', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+            <span style={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600 }}>{group.label}</span>
+            <select value={activeSorts[groupIndex] || ''} onChange={(e) => setSort(groupIndex, e.target.value)} style={{ border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 600, color: '#374151', cursor: 'pointer', outline: 'none' }}>
+              <option value="">ไม่เรียง</option>
+              {group.options.map((o) => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
+            </select>
           </div>
         ))}
       </div>

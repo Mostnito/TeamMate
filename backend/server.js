@@ -109,6 +109,22 @@ const uploadAvatar = multer({
     }
 });
 
+const achievementIconDir = path.join(__dirname, 'uploads', 'achievements');
+fs.mkdirSync(achievementIconDir, { recursive: true });
+const uploadAchievementIcon = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, achievementIconDir),
+        filename: (req, file, cb) => cb(null, `achievement_${req.params.id}_${Date.now()}${AVATAR_MIME_TO_EXT[file.mimetype]}`)
+    }),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!AVATAR_MIME_TO_EXT[file.mimetype]) {
+            return cb(new Error('INVALID_FILE_TYPE'));
+        }
+        cb(null, true);
+    }
+});
+
 //Authentication middleware
 function authenticateToken(req, res, next){
     const authHeader = req.headers["authorization"];
@@ -313,17 +329,16 @@ app.get('/api/user/:id/achievements', authenticateToken, async (req, res) => {
     }
     try {
         const [achievementsResult, earnedResult, metrics] = await Promise.all([
-            pool.query('SELECT achievement_id, code, name, description, img_path, metric, threshold, points_reward FROM achievements ORDER BY threshold ASC'),
+            pool.query('SELECT achievement_id, name, description, img_path, metric, threshold, points_reward, is_active FROM achievements ORDER BY threshold ASC'),
             pool.query('SELECT achievement_id, earned_at FROM user_achievements WHERE user_id = $1', [userId]),
             getAllMetricValues(userId)
         ]);
         const earnedMap = new Map(earnedResult.rows.map((r) => [r.achievement_id, r.earned_at]));
-        res.json(achievementsResult.rows.map((a) => {
+        res.json(achievementsResult.rows.filter((a) => a.is_active || earnedMap.has(a.achievement_id)).map((a) => {
             const currentValue = metrics[a.metric] || 0;
             const earnedAt = earnedMap.get(a.achievement_id) || null;
             return {
                 achievementId: a.achievement_id,
-                code: a.code,
                 name: a.name,
                 description: a.description,
                 imgPath: a.img_path,
@@ -657,7 +672,7 @@ async function checkAndAwardAchievements(userId, metric) {
         const value = valueResult.rows[0].count;
         const candidates = await pool.query(
             `SELECT achievement_id, name, points_reward FROM achievements
-             WHERE metric = $1 AND threshold <= $2
+             WHERE metric = $1 AND threshold <= $2 AND is_active = true
              AND achievement_id NOT IN (SELECT achievement_id FROM user_achievements WHERE user_id = $3)`,
             [metric, value, userId]
         );
@@ -992,6 +1007,209 @@ app.get('/api/admin/groups/:id', authenticateToken, async (req, res) => {
         console.error('Error fetching admin group detail:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
+});
+
+//Get all achievements including inactive ones, with earned-count per badge (admin only)
+app.get('/api/admin/achievements', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const result = await pool.query(
+            `SELECT a.achievement_id, a.name, a.description, a.img_path, a.metric, a.threshold, a.points_reward, a.is_active,
+                    COUNT(ua.user_achievement_id)::int AS earned_count
+             FROM achievements a
+             LEFT JOIN user_achievements ua ON ua.achievement_id = a.achievement_id
+             GROUP BY a.achievement_id
+             ORDER BY a.achievement_id ASC`
+        );
+        res.json(result.rows.map((a) => ({
+            achievementId: a.achievement_id,
+            name: a.name,
+            description: a.description,
+            imgPath: a.img_path,
+            metric: a.metric,
+            threshold: a.threshold,
+            pointsReward: a.points_reward,
+            isActive: a.is_active,
+            earnedCount: a.earned_count
+        })));
+    } catch (err) {
+        console.error('Error fetching admin achievement list:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+function validateAchievementFields(body, { partial }) {
+    const fields = {};
+    if (body.name !== undefined) {
+        const name = (body.name || '').trim();
+        if (!name) return { error: 'กรุณากรอกชื่อความสำเร็จ' };
+        fields.name = name;
+    } else if (!partial) {
+        return { error: 'กรุณากรอกชื่อความสำเร็จ' };
+    }
+
+    if (body.description !== undefined) {
+        fields.description = (body.description || '').trim() || null;
+    }
+
+    if (body.metric !== undefined) {
+        if (!METRIC_QUERIES[body.metric]) return { error: 'ตัวชี้วัด (metric) ไม่ถูกต้อง' };
+        fields.metric = body.metric;
+    } else if (!partial) {
+        return { error: 'กรุณาเลือกตัวชี้วัด' };
+    }
+
+    if (body.threshold !== undefined) {
+        const threshold = parseInt(body.threshold, 10);
+        if (!Number.isInteger(threshold) || threshold < 1) return { error: 'เป้าหมาย (threshold) ต้องเป็นจำนวนเต็มบวก' };
+        fields.threshold = threshold;
+    } else if (!partial) {
+        return { error: 'กรุณากรอกเป้าหมาย' };
+    }
+
+    if (body.pointsReward !== undefined) {
+        const pointsReward = parseInt(body.pointsReward, 10);
+        if (!Number.isInteger(pointsReward) || pointsReward < 0) return { error: 'คะแนนรางวัลต้องเป็นจำนวนเต็มไม่ติดลบ' };
+        fields.pointsReward = pointsReward;
+    } else if (!partial) {
+        return { error: 'กรุณากรอกคะแนนรางวัล' };
+    }
+
+    return { fields };
+}
+
+//Create a new achievement (admin only) - icon is uploaded separately once the row exists
+app.post('/api/admin/achievements', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const { error, fields } = validateAchievementFields(req.body, { partial: false });
+        if (error) {
+            return res.status(400).json({ error });
+        }
+        const result = await pool.query(
+            `INSERT INTO achievements (name, description, metric, threshold, points_reward)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING achievement_id, name, description, img_path, metric, threshold, points_reward, is_active`,
+            [fields.name, fields.description || null, fields.metric, fields.threshold, fields.pointsReward]
+        );
+        const a = result.rows[0];
+        logActivity(req.user.userId, 'create_achievement', 'achievement', a.achievement_id, req);
+        res.status(201).json({
+            achievementId: a.achievement_id, name: a.name, description: a.description,
+            imgPath: a.img_path, metric: a.metric, threshold: a.threshold, pointsReward: a.points_reward,
+            isActive: a.is_active, earnedCount: 0
+        });
+    } catch (err) {
+        console.error('Error creating achievement:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Update an achievement's fields and/or active status (admin only)
+app.put('/api/admin/achievements/:id', authenticateToken, async (req, res) => {
+    const achievementId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(achievementId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const { error, fields } = validateAchievementFields(req.body, { partial: true });
+        if (error) {
+            return res.status(400).json({ error });
+        }
+        const isActiveProvided = req.body.isActive !== undefined;
+        if (isActiveProvided) fields.isActive = !!req.body.isActive;
+
+        const columnMap = { name: 'name', description: 'description', metric: 'metric', threshold: 'threshold', pointsReward: 'points_reward', isActive: 'is_active' };
+        const setClauses = [];
+        const values = [];
+        for (const [key, column] of Object.entries(columnMap)) {
+            if (fields[key] !== undefined) {
+                values.push(fields[key]);
+                setClauses.push(`${column} = $${values.length}`);
+            }
+        }
+        if (setClauses.length === 0) {
+            return res.status(400).json({ error: 'ไม่มีข้อมูลให้อัปเดต' });
+        }
+        values.push(achievementId);
+
+        const result = await pool.query(
+            `UPDATE achievements SET ${setClauses.join(', ')} WHERE achievement_id = $${values.length}
+             RETURNING achievement_id, name, description, img_path, metric, threshold, points_reward, is_active`,
+            values
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบความสำเร็จนี้' });
+        }
+        const a = result.rows[0];
+        const onlyToggled = isActiveProvided && Object.keys(fields).length === 1;
+        logActivity(req.user.userId, onlyToggled ? 'toggle_achievement' : 'update_achievement', 'achievement', achievementId, req);
+        res.json({
+            achievementId: a.achievement_id, name: a.name, description: a.description,
+            imgPath: a.img_path, metric: a.metric, threshold: a.threshold, pointsReward: a.points_reward,
+            isActive: a.is_active
+        });
+    } catch (err) {
+        console.error('Error updating achievement:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Upload/replace an achievement's icon (admin only)
+app.post('/api/admin/achievements/:id/icon', authenticateToken, async (req, res) => {
+    const achievementId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(achievementId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    if (!(await isAdmin(req.user.userId))) {
+        return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+    }
+
+    uploadAchievementIcon.single('icon')(req, res, async (err) => {
+        if (err) {
+            if (err.message === 'INVALID_FILE_TYPE') {
+                return res.status(400).json({ error: 'รองรับเฉพาะไฟล์ JPG, PNG, WEBP เท่านั้น' });
+            }
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 2MB' });
+            }
+            console.error('Error uploading achievement icon:', err);
+            return res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
+        }
+
+        try {
+            const oldResult = await pool.query('SELECT img_path FROM achievements WHERE achievement_id = $1', [achievementId]);
+            if (oldResult.rows.length === 0) {
+                fs.unlink(req.file.path, () => {});
+                return res.status(404).json({ error: 'ไม่พบความสำเร็จนี้' });
+            }
+            const oldPath = oldResult.rows[0].img_path;
+
+            const imgPath = '/uploads/achievements/' + req.file.filename;
+            await pool.query('UPDATE achievements SET img_path = $1 WHERE achievement_id = $2', [imgPath, achievementId]);
+
+            if (oldPath) {
+                fs.unlink(path.join(__dirname, oldPath), () => {});
+            }
+
+            logActivity(req.user.userId, 'update_achievement', 'achievement', achievementId, req);
+            res.json({ imgPath, message: 'อัปโหลดไอคอนสำเร็จ' });
+        } catch (dbErr) {
+            fs.unlink(req.file.path, () => {});
+            console.error('Error saving achievement icon path:', dbErr);
+            res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+        }
+    });
 });
 
 //Get the activity/audit log, paginated (admin only)

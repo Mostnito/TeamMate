@@ -212,14 +212,13 @@ CREATE TABLE reports (
 
 CREATE TABLE achievements (
     achievement_id SERIAL PRIMARY KEY,
-    code VARCHAR(100) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     img_path VARCHAR(255),
     metric VARCHAR(50) NOT NULL,
     threshold INTEGER NOT NULL,
     points_reward INTEGER NOT NULL DEFAULT 0,
-
+    is_active BOOLEAN NOT NULL DEFAULT true
 );
 
 CREATE TABLE user_achievements (
