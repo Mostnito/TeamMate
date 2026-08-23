@@ -106,7 +106,7 @@ export default function AdminUsersScreen({ v }) {
     <div style={{ padding: '22px 28px' }}>
       {editingUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditingUser(null)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 380, maxWidth: 'calc(100vw - 32px)', background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 380, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 60px)', overflowY: 'auto', background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 18 }}>แก้ไขข้อมูลสมาชิก</div>
             <div style={{ marginBottom: 14 }}>
               <div style={label}>ชื่อจริง</div>
@@ -164,7 +164,7 @@ export default function AdminUsersScreen({ v }) {
           {filteredUsers.map((u) => {
             const isSelf = u.userId === v.currentUserId;
             return (
-              <div key={u.userId} style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', gap: 14, opacity: u.isActive ? 1 : 0.55 }}>
+              <div key={u.userId} style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, opacity: u.isActive ? 1 : 0.55 }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: '50%', flexShrink: 0, color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13,
                   background: u.avatarUrl ? `#EFF6FF url(${u.avatarUrl}) center/cover no-repeat` : '#EFF6FF'

@@ -19,7 +19,7 @@ export default function Sidebar({ v, isDrawerOpen, onCloseDrawer }) {
           <div style={{ fontSize: 10.5, color: '#6B7280' }}>แพลตฟอร์มทำงานกลุ่ม</div>
         </div>
       </div>
-      <div style={{ flex: 1, padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {v.navItems.map((item) => (
           <div
             key={item.key}

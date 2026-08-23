@@ -123,7 +123,7 @@ export default function AdminGroupsScreen() {
                   {detail.members.map((m) => (
                     <div key={m.userId} style={{ ...cardSm, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
                       <div style={avatar('#EFF6FF', '#2563EB', 30)}>{(m.firstName.charAt(0) + m.lastName.charAt(0)).toUpperCase()}</div>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{m.firstName} {m.lastName} ({m.nickname})</div>
                         <div style={{ fontSize: 10.5, color: '#9CA3AF' }}>{m.studentId || 'ไม่มีรหัสนิสิต'}</div>
                       </div>

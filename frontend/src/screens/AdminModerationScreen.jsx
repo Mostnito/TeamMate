@@ -65,7 +65,7 @@ export default function AdminModerationScreen() {
 
       <div style={{ ...card, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>คำต้องห้ามในแชท</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
           <input
             value={newBannedWord}
             onChange={(e) => setNewBannedWord(e.target.value)}
