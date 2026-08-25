@@ -6,6 +6,27 @@ import { IoMdArrowBack } from 'react-icons/io';
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
+// major heading ("1. คำนิยาม") gets emphasis; numbered sub-items ("5.1", "6.3") stay plain body text
+const MAJOR_HEADING_PATTERN = /^\d+\.\s/;
+function renderTermsContent(text) {
+  return (text || '').split('\n').map((line, i) => {
+    const trimmed = line.trim();
+    if (!trimmed) return <div key={i} style={{ height: 12 }} />;
+    if (MAJOR_HEADING_PATTERN.test(trimmed)) {
+      return (
+        <div key={i} style={{ fontSize: 15, fontWeight: 800, color: '#111827', lineHeight: 1.6, marginTop: 22, paddingBottom: 6, borderBottom: '1px solid #F3F4F6' }}>
+          {trimmed}
+        </div>
+      );
+    }
+    return (
+      <div key={i} style={{ fontSize: 12.5, fontWeight: 400, color: '#4B5A6E', lineHeight: 1.8 }}>
+        {trimmed}
+      </div>
+    );
+  });
+}
+
 // keeps free-text "อื่น ๆ" skill entries shaped like a skill name (e.g. "Machine Learning"),
 // not a sentence (e.g. "I love my job") -- checked before it's ever sent anywhere
 const SKILL_NAME_PATTERN = /^[a-zA-Z฀-๿0-9\s/+#.-]+$/;
@@ -23,6 +44,10 @@ export default function SignupScreen({ v }) {
   const [skills, setSkills] = useState([]);
   const [skillOtherError, setSkillOtherError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [termsOfService, setTermsOfService] = useState('');
+  const [hasScrolledTerms, setHasScrolledTerms] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -32,8 +57,17 @@ export default function SignupScreen({ v }) {
     axios.get('/api/skill', { signal: controller.signal })
       .then((res) => setSkills(res.data))
       .catch((err) => { if (!axios.isCancel(err)) setSkills([]); });
+    axios.get('/api/terms-of-service', { signal: controller.signal })
+      .then((res) => setTermsOfService(res.data.termsOfService || ''))
+      .catch((err) => { if (!axios.isCancel(err)) setTermsOfService(''); });
     return () => controller.abort();
   }, []);
+
+  const requiresTerms = !!termsOfService.trim();
+  const handleTermsScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollTop + clientHeight >= scrollHeight - 4) setHasScrolledTerms(true);
+  };
 
   const onSkillOtherChange = (e) => {
     v.onSuSkillOther(e);
@@ -70,6 +104,10 @@ export default function SignupScreen({ v }) {
     }
     if (su.password !== su.confirmPassword) {
       toast.error('รหัสผ่านไม่ตรงกัน');
+      return;
+    }
+    if (requiresTerms && !agreedToTerms) {
+      toast.error('กรุณาอ่านและยอมรับข้อกำหนดการใช้งานก่อนสมัครสมาชิก');
       return;
     }
     let finalSkills = su.skills;
@@ -182,10 +220,45 @@ export default function SignupScreen({ v }) {
           </div>
         </div>
 
-        <button onClick={handleSubmit} disabled={isSubmitting} style={{ ...btnPrimary, width: '100%', padding: 13, borderRadius: 10, fontSize: 14, marginTop: 20, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
+        {requiresTerms && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 20 }}>
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              disabled={!hasScrolledTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              style={{ marginTop: 3, width: 15, height: 15, flexShrink: 0, cursor: hasScrolledTerms ? 'pointer' : 'not-allowed' }}
+            />
+            <div style={{ fontSize: 12.5, color: '#374151', lineHeight: 1.7 }}>
+              ฉันได้อ่านและยอมรับ{' '}
+              <span onClick={() => setIsTermsModalOpen(true)} style={{ color: '#2563EB', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>
+                ข้อกำหนดการใช้งาน
+              </span>
+            </div>
+          </div>
+        )}
+
+        <button onClick={handleSubmit} disabled={isSubmitting || (requiresTerms && !agreedToTerms)} style={{ ...btnPrimary, width: '100%', padding: 13, borderRadius: 10, fontSize: 14, marginTop: 20, opacity: isSubmitting || (requiresTerms && !agreedToTerms) ? 0.7 : 1, cursor: isSubmitting || (requiresTerms && !agreedToTerms) ? 'not-allowed' : 'pointer' }}>
           {isSubmitting ? 'กำลังสมัครสมาชิก...' : 'สมัครสมาชิก'}
         </button>
       </div>
+
+      {isTermsModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIsTermsModalOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 60px)', background: '#fff', borderRadius: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '20px 26px 16px', borderBottom: '1px solid #F3F4F6' }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>ข้อกำหนดการใช้งาน</div>
+              <div style={{ fontSize: 11.5, color: '#9CA3AF', marginTop: 3 }}>เลื่อนอ่านจนจบเพื่อเปิดใช้งานช่องยอมรับ</div>
+            </div>
+            <div onScroll={handleTermsScroll} style={{ flex: 1, overflowY: 'auto', padding: '18px 26px' }}>
+              {renderTermsContent(termsOfService)}
+            </div>
+            <div style={{ padding: '14px 26px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setIsTermsModalOpen(false)} style={{ ...btnPrimary, padding: '10px 24px' }}>ปิด</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

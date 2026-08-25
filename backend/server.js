@@ -747,6 +747,37 @@ app.put('/api/admin/settings/banned-words', authenticateToken, async (req, res) 
     }
 });
 
+//Get terms of service (public - shown on the signup page before login)
+app.get('/api/terms-of-service', async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT value FROM system_settings WHERE key = 'terms_of_service'`);
+        res.json({ termsOfService: result.rows[0]?.value || '' });
+    } catch (err) {
+        console.error('Error fetching terms of service:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์' });
+    }
+});
+
+//Update terms of service (admin only)
+app.put('/api/admin/settings/terms-of-service', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const termsOfService = typeof req.body.termsOfService === 'string' ? req.body.termsOfService : '';
+        await pool.query(
+            `INSERT INTO system_settings (key, value) VALUES ('terms_of_service', $1)
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+            [termsOfService]
+        );
+        logActivity(req.user.userId, 'update_terms_of_service', null, null, req);
+        res.json({ message: 'บันทึกข้อกำหนดการใช้งานแล้ว' });
+    } catch (err) {
+        console.error('Error updating terms of service:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์' });
+    }
+});
+
 //Get moderation reports (admin only), optionally filtered by status
 app.get('/api/admin/reports', authenticateToken, async (req, res) => {
     try {
