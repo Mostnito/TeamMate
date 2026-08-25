@@ -114,13 +114,6 @@ CREATE TABLE messages (
     sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE message_reads (
-    message_read_id SERIAL PRIMARY KEY,
-    message_id      INTEGER NOT NULL REFERENCES messages(message_id) ON DELETE CASCADE,
-    user_id         INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    seen_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (message_id, user_id)
-);
 
 CREATE TABLE points (
     point_id      SERIAL PRIMARY KEY,
@@ -242,7 +235,6 @@ CREATE INDEX idx_task_attachments_task_id ON task_attachments(task_id);
 CREATE INDEX idx_task_reviews_task_id ON task_reviews(task_id);
 CREATE INDEX idx_messages_group_id ON messages(group_id);
 CREATE INDEX idx_messages_user_id ON messages(user_id);
-CREATE INDEX idx_message_reads_message_id ON message_reads(message_id);
 CREATE INDEX idx_points_user_id ON points(user_id);
 CREATE INDEX idx_points_group_id ON points(group_id);
 CREATE INDEX idx_points_task_id ON points(task_id);
