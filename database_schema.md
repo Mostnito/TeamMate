@@ -41,7 +41,8 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     birth_date    DATE,
     phone         VARCHAR(20),
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_active     BOOLEAN NOT NULL DEFAULT true
 );
 
 CREATE TABLE user_skills (
@@ -221,6 +222,32 @@ CREATE TABLE user_achievements (
     earned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, achievement_id)
 );
+
+INSERT INTO gender (gender_type) VALUES
+('ชาย'),
+('หญิง'),
+('ไม่ระบุ');
+
+INSERT INTO event_types (name, label_th, color, icon_name) VALUES
+('meeting', 'ประชุม', '#2563EB', 'people'),
+('presentation', 'นำเสนอ/เดโม', '#16A34A', 'calendar'),
+('workshop', 'เวิร์กช็อป', '#8B5CF6', 'time'),
+('other', 'อื่นๆ', '#6B7280', 'calendar');
+
+INSERT INTO skills (skill_name) VALUES
+('Frontend'), ('Backend'), ('UI/UX Design'), ('Database'), ('DevOps'), ('AI/ML'),
+('Presentation'), ('Documentation'), ('Testing'), ('Project Management'),
+('Data Science'), ('Mobile Application'), ('Python'), ('Java'), ('C#'), ('C++'), ('C'),
+('Software'), ('Cyber Security');
+
+INSERT INTO achievements (name, description, metric, threshold, points_reward) VALUES
+('นักสำรวจทีม', 'เข้าร่วมกลุ่มครบ 5 กลุ่ม', 'groups_joined', 5, 20),
+('นักส่งงานมือใหม่', 'ส่งงานสำเร็จครบ 5 ครั้ง', 'tasks_submitted', 5, 25),
+('นักส่งงานตัวยง', 'ส่งงานสำเร็จครบ 25 ครั้ง', 'tasks_submitted', 25, 100),
+('หัวหน้าทีมตัวจริง', 'ตรวจงานครบ 10 ครั้ง', 'tasks_reviewed', 10, 50),
+('นักประเมินผล', 'ประเมินเพื่อนร่วมทีมครบ 5 ครั้ง', 'evaluations_submitted', 5, 25),
+('นักวางแผน', 'สร้างกิจกรรมในปฏิทินครบ 5 ครั้ง', 'calendar_events_created', 5, 20);
+
 
 
 
