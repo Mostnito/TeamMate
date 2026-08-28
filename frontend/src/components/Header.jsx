@@ -13,7 +13,7 @@ export default function Header({ v, onToggleDrawer }) {
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <div onClick={v.openUserProfile(v.currentUserPublicId)} style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }} title="ดูโปรไฟล์ของฉัน">
           <div style={{
             position: 'relative', width: 34, height: 34, borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13,
             background: v.currentUserAvatarUrl ? `#2563EB url(${v.currentUserAvatarUrl}) center/cover no-repeat` : '#2563EB'

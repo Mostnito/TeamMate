@@ -40,7 +40,8 @@ export default function LoginScreen({ v }) {
         studentId: res.data.studentId || '',
         userId: res.data.userId,
         avatarUrl: res.data.avatarUrl || '',
-        title: res.data.title || ''
+        title: res.data.title || '',
+        publicId: res.data.publicId
       };
 
       v.completeLogin(currentUser, isAdminMode);

@@ -271,7 +271,7 @@ app.post('/api/login', async (req, res) => {
 
         const token = jwt.sign({ userId: user.user_id }, process.env.TOKEN_SECRET, { expiresIn: '1h' });
         logActivity(user.user_id, 'login', null, null, req);
-        res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, title: user.title, message: 'เข้าสู่ระบบสำเร็จ' });
+        res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, title: user.title, publicId: user.public_id, message: 'เข้าสู่ระบบสำเร็จ' });
     } catch (err) {
         console.error('Error during login:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
@@ -281,7 +281,7 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/check', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT u.user_id, u.nickname, u.student_id, u.system_role, u.avatar_path, u.is_active, s.name AS title
+            `SELECT u.user_id, u.nickname, u.student_id, u.system_role, u.avatar_path, u.is_active, u.public_id, s.name AS title
              FROM users u LEFT JOIN shop_items s ON s.item_id = u.equipped_title_id WHERE u.user_id = $1`,
             [req.user.userId]
         );
@@ -292,7 +292,7 @@ app.get('/api/check', authenticateToken, async (req, res) => {
         if (!user.is_active) {
             return res.status(403).json({ error: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
         }
-        res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, title: user.title });
+        res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, title: user.title, publicId: user.public_id });
     } catch (err) {
         console.error('Error fetching current user:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });

@@ -62,7 +62,7 @@ export default function App() {
     axios.get('/api/check', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
       .then((res) => {
         const isAdminMode = res.data.role === 'admin';
-        const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId, avatarUrl: res.data.avatarUrl || '', title: res.data.title || '' };
+        const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId, avatarUrl: res.data.avatarUrl || '', title: res.data.title || '', publicId: res.data.publicId };
         // supports opening a shared /profile/:id link directly, without a full router
         const profileMatch = window.location.pathname.match(/^\/profile\/([\w-]+)$/);
         const initialScreen = profileMatch ? { screen: 'userProfile', viewedPublicId: profileMatch[1] } : null;

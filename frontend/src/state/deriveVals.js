@@ -219,7 +219,7 @@ export default function deriveVals(state, actions) {
   const hasTeam = s.myTeamCount > 0;
 
   return {
-    showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel, currentUserId: s.currentUser.userId, currentUserAvatarUrl: s.currentUser.avatarUrl, currentUserTitle: s.currentUser.title,
+    showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel, currentUserId: s.currentUser.userId, currentUserAvatarUrl: s.currentUser.avatarUrl, currentUserTitle: s.currentUser.title, currentUserPublicId: s.currentUser.publicId,
     goSettings: actions.goSettings, settingsIconColor: settingsActive ? '#2563EB' : '#6B7280', settingsTextColor: settingsActive ? '#2563EB' : '#374151', handleLogout: actions.handleLogout,
     isLogin, loginEmail: s.loginEmail, loginPassword: s.loginPassword,
     loginPwType: s.loginShowPw ? 'text' : 'password', loginPwIcon: s.loginShowPw ? 'ซ่อน' : 'แสดง',
