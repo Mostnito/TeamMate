@@ -86,6 +86,14 @@ export default function TeamChatScreen({ v }) {
           return (
             <div key={msg.messageId} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '60%' }}>
+                {!mine && (
+                  <div style={{
+                    width: 26, height: 26, borderRadius: '50%', flexShrink: 0, color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11,
+                    background: msg.senderAvatarUrl ? `#EFF6FF url(${msg.senderAvatarUrl}) center/cover no-repeat` : '#EFF6FF'
+                  }}>
+                    {!msg.senderAvatarUrl && msg.senderName.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div style={{ background: mine ? '#2563EB' : '#F3F4F6', color: mine ? '#fff' : '#111827', padding: '10px 14px', borderRadius: 12, fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
               </div>
               <div style={{ fontSize: 10, color: '#AEB9C6', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
