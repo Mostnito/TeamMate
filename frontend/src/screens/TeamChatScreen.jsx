@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
@@ -8,6 +8,8 @@ import ReportModal from '../components/ReportModal.jsx';
 export default function TeamChatScreen({ v }) {
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [reads, setReads] = useState({});
   const [chatInput, setChatInput] = useState('');
   const [reportTarget, setReportTarget] = useState(null);
   const [isReporting, setIsReporting] = useState(false);
@@ -17,18 +19,50 @@ export default function TeamChatScreen({ v }) {
   useEffect(() => {
     if (v.teamId == null) { setIsLoading(false); return; }
     const token = localStorage.getItem('token');
+    const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
     let cancelled = false;
 
-    axios.get(`/api/group/${v.teamId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(`/api/group/${v.teamId}/messages`, authHeaders)
       .then((res) => { if (!cancelled) setMessages(res.data); })
       .catch((err) => { if (!cancelled) toast.error(err.response?.data?.error || 'โหลดประวัติแชทไม่สำเร็จ'); })
       .finally(() => { if (!cancelled) setIsLoading(false); });
+
+    axios.get(`/api/group/${v.teamId}/members`, authHeaders)
+      .then((res) => { if (!cancelled) setMembers(res.data); })
+      .catch(() => {});
+
+    axios.get(`/api/group/${v.teamId}/message-reads`, authHeaders)
+      .then((res) => {
+        if (cancelled) return;
+        const map = {};
+        res.data.forEach((r) => { map[r.userId] = r.lastReadMessageId; });
+        setReads(map);
+      })
+      .catch(() => {});
 
     const socket = io('/', { auth: { token } });
     socketRef.current = socket;
     socket.on('connect', () => socket.emit('join_group', v.teamId));
     socket.on('message_received', (msg) => {
-      if (msg.groupId === v.teamId) setMessages((prev) => [...prev, msg]);
+      if (msg.groupId !== v.teamId) return;
+      setMessages((prev) => [...prev, msg]);
+      // chat screen is open and the new message just rendered - mark it read immediately
+      // instead of waiting for the user to leave and re-enter the chat
+      socket.emit('join_group', v.teamId);
+    });
+    socket.on('read_receipt_updated', (data) => {
+      if (data.groupId !== v.teamId) return;
+      setReads((prev) => ({ ...prev, [data.userId]: data.lastReadMessageId }));
+      // members who join the group after this screen already fetched its member list
+      // are missing from `members`, so their read markers would never render - refetch when that happens
+      setMembers((prev) => {
+        if (!prev.some((m) => m.userId === data.userId)) {
+          axios.get(`/api/group/${v.teamId}/members`, authHeaders)
+            .then((res) => { if (!cancelled) setMembers(res.data); })
+            .catch(() => {});
+        }
+        return prev;
+      });
     });
 
     return () => {
@@ -36,6 +70,20 @@ export default function TeamChatScreen({ v }) {
       socket.disconnect();
     };
   }, [v.teamId]);
+
+  const readMarkersByMessageId = useMemo(() => {
+    const map = {};
+    members.forEach((member) => {
+      if (member.userId === v.currentUserId) return;
+      const lastReadMessageId = reads[member.userId];
+      if (lastReadMessageId == null) return;
+      const readMessage = messages.find((msg) => msg.messageId === lastReadMessageId);
+      if (!readMessage) return;
+      if (!map[readMessage.messageId]) map[readMessage.messageId] = [];
+      map[readMessage.messageId].push(member);
+    });
+    return map;
+  }, [messages, reads, members, v.currentUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,6 +131,7 @@ export default function TeamChatScreen({ v }) {
         {messages.length === 0 && <div style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>ยังไม่มีข้อความ เริ่มการสนทนาได้เลย</div>}
         {messages.map((msg) => {
           const mine = msg.senderId === v.currentUserId;
+          const readers = readMarkersByMessageId[msg.messageId];
           return (
             <div key={msg.messageId} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '60%' }}>
@@ -108,6 +157,22 @@ export default function TeamChatScreen({ v }) {
                   </span>
                 )}
               </div>
+              {readers && readers.length > 0 && (
+                <div style={{ display: 'flex', gap: 2, marginTop: 3 }}>
+                  {readers.map((reader) => (
+                    <div
+                      key={reader.userId}
+                      title={`อ่านแล้วโดย ${reader.nickname || reader.firstName}`}
+                      style={{
+                        width: 14, height: 14, borderRadius: '50%', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 7, border: '1px solid #fff',
+                        background: reader.avatarUrl ? `#EFF6FF url(${reader.avatarUrl}) center/cover no-repeat` : '#EFF6FF'
+                      }}
+                    >
+                      {!reader.avatarUrl && (reader.nickname || reader.firstName).charAt(0).toUpperCase()}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

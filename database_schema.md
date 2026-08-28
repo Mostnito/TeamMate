@@ -241,6 +241,20 @@ CREATE TABLE user_purchases (
     UNIQUE (user_id, item_id)
 );
 
+
+
+
+CREATE TABLE message_reads (
+    message_read_id SERIAL PRIMARY KEY,
+    message_id      INTEGER NOT NULL REFERENCES messages(message_id) ON DELETE CASCADE,
+    user_id         INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    seen_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (message_id, user_id)
+);
+
+CREATE INDEX idx_message_reads_message_id ON message_reads(message_id);
+
+
 ALTER TABLE users ADD COLUMN equipped_title_id INTEGER REFERENCES shop_items(item_id) ON DELETE SET NULL;
 
 -- opaque, unguessable identifier used in shareable profile URLs instead of the sequential user_id.

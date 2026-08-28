@@ -38,6 +38,28 @@ io.on('connection', (socket) => {
     socket.on('join_group', async (groupId) => {
         if (!(await isGroupMember(socket.userId, groupId))) return;
         socket.join(`group_${groupId}`);
+
+        try {
+            const readResult = await pool.query(
+                `WITH inserted AS (
+                     INSERT INTO message_reads (message_id, user_id)
+                     SELECT m.message_id, $2
+                     FROM messages m
+                     WHERE m.group_id = $1
+                       AND NOT EXISTS (SELECT 1 FROM message_reads mr WHERE mr.message_id = m.message_id AND mr.user_id = $2)
+                     ON CONFLICT (message_id, user_id) DO NOTHING
+                     RETURNING message_id
+                 )
+                 SELECT MAX(message_id) AS latest FROM inserted`,
+                [groupId, socket.userId]
+            );
+            const lastReadMessageId = readResult.rows[0].latest;
+            if (lastReadMessageId != null) {
+                io.to(`group_${groupId}`).emit('read_receipt_updated', { groupId, userId: socket.userId, lastReadMessageId });
+            }
+        } catch (err) {
+            console.error('Error updating read receipt:', err);
+        }
     });
 
     socket.on('send_message', async ({ groupId, content }) => {
@@ -2439,6 +2461,30 @@ app.get('/api/group/:id/messages', authenticateToken, async (req, res) => {
         })));
     } catch (err) {
         console.error('Error fetching group messages:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+app.get('/api/group/:id/message-reads', authenticateToken, async (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isGroupMember(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
+        }
+        const result = await pool.query(
+            `SELECT mr.user_id, MAX(mr.message_id) AS last_read_message_id
+             FROM message_reads mr
+             JOIN messages m ON m.message_id = mr.message_id
+             WHERE m.group_id = $1
+             GROUP BY mr.user_id`,
+            [groupId]
+        );
+        res.json(result.rows.map((r) => ({ userId: r.user_id, lastReadMessageId: r.last_read_message_id })));
+    } catch (err) {
+        console.error('Error fetching message reads:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });
