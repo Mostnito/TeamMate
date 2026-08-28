@@ -77,7 +77,17 @@ export default function TeamChatScreen({ v }) {
       if (member.userId === v.currentUserId) return;
       const lastReadMessageId = reads[member.userId];
       if (lastReadMessageId == null) return;
-      const readMessage = messages.find((msg) => msg.messageId === lastReadMessageId);
+      // find the latest message this member has read that they didn't send themselves -
+      // a "read by them" chip on their own message is redundant and confusing; it belongs
+      // on the last message from someone else (usually us) that they've actually read
+      let readMessage = null;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.messageId > lastReadMessageId) continue;
+        if (msg.senderId === member.userId) continue;
+        readMessage = msg;
+        break;
+      }
       if (!readMessage) return;
       if (!map[readMessage.messageId]) map[readMessage.messageId] = [];
       map[readMessage.messageId].push(member);
