@@ -61,23 +61,23 @@ export default function AdminModerationScreen() {
   return (
     <div style={{ padding: '22px 28px', maxWidth: 640 }}>
       <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>การคัดกรอง</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 20 }}>จัดการคำต้องห้ามในแชท ระบบจะเซ็นเซอร์และแจ้งรายงานให้อัตโนมัติ</div>
+      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 20 }}>จัดการคำคัดกรองภายในแชท</div>
 
       <div style={{ ...card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>คำต้องห้ามในแชท</div>
+        <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>คำคัดกรองภายในแชท</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
           <input
             value={newBannedWord}
             onChange={(e) => setNewBannedWord(e.target.value)}
             onKeyDown={onNewBannedWordKeyDown}
-            placeholder="พิมพ์คำต้องห้ามแล้วกด Enter หรือเพิ่ม"
+            placeholder="พิมพ์คำที่ต้องการจะคัดกรอง"
             style={inputSm}
           />
           <button onClick={handleAddBannedWord} style={btnSecondary}>เพิ่ม</button>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           {bannedWordsList.length === 0 ? (
-            <div style={{ fontSize: 11.5, color: '#9CA3AF' }}>ยังไม่มีคำต้องห้าม</div>
+            <div style={{ fontSize: 11.5, color: '#9CA3AF' }}>ยังไม่มีคำคัดกรอง</div>
           ) : bannedWordsList.map((word) => (
             <div key={word} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px 6px 14px', borderRadius: 20, fontSize: 12.5, background: '#FEE2E2', color: '#DC2626', fontWeight: 600 }}>
               {word}

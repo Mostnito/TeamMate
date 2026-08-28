@@ -243,8 +243,12 @@ CREATE TABLE user_purchases (
 
 ALTER TABLE users ADD COLUMN equipped_title_id INTEGER REFERENCES shop_items(item_id) ON DELETE SET NULL;
 
--- opaque, unguessable identifier used in shareable profile URLs instead of the sequential user_id
-ALTER TABLE users ADD COLUMN public_id VARCHAR(24) UNIQUE NOT NULL;
+-- opaque, unguessable identifier used in shareable profile URLs instead of the sequential user_id.
+-- added in 3 steps (not a single NOT NULL column add) because on a table that already has rows,
+-- Postgres has nothing to fill them with in one step - add nullable, backfill, then enforce NOT NULL.
+ALTER TABLE users ADD COLUMN public_id VARCHAR(32) UNIQUE;
+UPDATE users SET public_id = md5(random()::text || clock_timestamp()::text || user_id::text) WHERE public_id IS NULL;
+ALTER TABLE users ALTER COLUMN public_id SET NOT NULL;
 
 INSERT INTO gender (gender_type) VALUES
 ('ชาย'),

@@ -88,7 +88,7 @@ export default function useAppState() {
   // actual authentication happens via /api/login directly in LoginScreen.jsx;
   // this just applies the resulting session to central state once that call succeeds
   const completeLogin = (currentUser, isAdminMode, initialScreen) => setState((s) => ({
-    ...s, screen: initialScreen?.screen || (isAdminMode ? 'admin' : 'dashboard'), isAdminMode, currentUser,
+    ...s, screen: initialScreen?.screen || (isAdminMode ? 'adminActivity' : 'dashboard'), isAdminMode, currentUser,
     viewedPublicId: initialScreen?.viewedPublicId ?? s.viewedPublicId
   }));
 

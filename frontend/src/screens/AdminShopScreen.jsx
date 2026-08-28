@@ -75,7 +75,7 @@ export default function AdminShopScreen() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>จัดการร้านค้า</div>
-          <div style={{ fontSize: 12, color: '#6B7280' }}>สร้าง แก้ไข และปิด/เปิดใช้งานไอเทมในร้านค้า</div>
+          <div style={{ fontSize: 12, color: '#6B7280' }}>จัดการร้านค้า</div>
         </div>
         <button onClick={openCreate} style={{ ...btnPrimary, display: 'flex', alignItems: 'center', gap: 4 }}><IoMdAdd size={14} /> เพิ่มไอเทม</button>
       </div>

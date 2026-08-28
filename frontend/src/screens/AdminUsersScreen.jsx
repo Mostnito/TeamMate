@@ -5,7 +5,7 @@ import { label, input, btnPrimary, btnSecondary } from '../styles/common.js';
 import { IoMdSearch } from 'react-icons/io';
 
 const ROLE_LABELS = { student: 'นักเรียน', advisor: 'อาจารย์', admin: 'แอดมิน' };
-const EMPTY_FORM = { firstName: '', lastName: '', nickname: '', studentId: '' };
+const EMPTY_FORM = { firstName: '', lastName: '', nickname: '', studentId: '', email: '', password: '' };
 const SORT_GROUPS = [
   {
     label: 'เวลาสร้าง',
@@ -63,17 +63,22 @@ export default function AdminUsersScreen({ v }) {
 
   const openEdit = (u) => {
     setEditingUser(u);
-    setForm({ firstName: u.firstName, lastName: u.lastName, nickname: u.nickname, studentId: u.studentId || '' });
+    setForm({ firstName: u.firstName, lastName: u.lastName, nickname: u.nickname, studentId: u.studentId || '', email: u.email, password: '' });
   };
 
   const handleSaveEdit = () => {
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.nickname.trim()) {
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.nickname.trim() || !form.email.trim()) {
       toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+    if (form.password && form.password.length < 6) {
+      toast.error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
       return;
     }
     setIsSaving(true);
     axios.patch(`/api/admin/users/${editingUser.userId}`, {
-      firstName: form.firstName, lastName: form.lastName, nickname: form.nickname, studentId: form.studentId || null
+      firstName: form.firstName, lastName: form.lastName, nickname: form.nickname, studentId: form.studentId || null,
+      email: form.email.trim(), password: form.password
     }, authHeaders())
       .then((res) => {
         toast.success(res.data.message || 'บันทึกการแก้ไขสำเร็จ');
@@ -120,9 +125,17 @@ export default function AdminUsersScreen({ v }) {
               <div style={label}>ชื่อเล่น</div>
               <input value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} style={input} />
             </div>
-            <div style={{ marginBottom: 6 }}>
+            <div style={{ marginBottom: 14 }}>
               <div style={label}>รหัสนิสิต</div>
               <input value={form.studentId} onChange={(e) => setForm((f) => ({ ...f, studentId: e.target.value }))} style={input} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={label}>อีเมล</div>
+              <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} style={input} />
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <div style={label}>รหัสผ่านใหม่</div>
+              <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="รหัสผ่านใหม่" style={input} />
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
               <button onClick={() => setEditingUser(null)} disabled={isSaving} style={{ ...btnSecondary, flex: 1, padding: 11 }}>ยกเลิก</button>

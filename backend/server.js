@@ -994,12 +994,18 @@ app.patch('/api/admin/users/:id', authenticateToken, async (req, res) => {
     if (!Number.isInteger(targetUserId)) {
         return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
     }
-    const { firstName, lastName, nickname, studentId, role, isActive } = req.body;
+    const { firstName, lastName, nickname, studentId, role, isActive, email, password } = req.body;
     if (role !== undefined && !USER_ROLE_VALUES.includes(role)) {
         return res.status(400).json({ error: 'บทบาทไม่ถูกต้อง' });
     }
     if (targetUserId === req.user.userId && (isActive === false || (role !== undefined && role !== 'admin'))) {
         return res.status(400).json({ error: 'ไม่สามารถปิดใช้งานหรือเปลี่ยนบทบาทของบัญชีตัวเองได้' });
+    }
+    if (email !== undefined && !/^\S+@\S+\.\S+$/.test(email)) {
+        return res.status(400).json({ error: 'กรุณากรอกอีเมลให้ถูกต้อง' });
+    }
+    if (password !== undefined && password !== '' && password.length < 6) {
+        return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
     }
 
     try {
@@ -1019,6 +1025,9 @@ app.patch('/api/admin/users/:id', authenticateToken, async (req, res) => {
         if (studentId !== undefined) addField('student_id', studentId || null);
         if (role !== undefined) addField('system_role', role);
         if (isActive !== undefined) addField('is_active', isActive);
+        if (email !== undefined) addField('email', email.trim());
+        // empty string means "leave password unchanged" - only hash and update when a real value is given
+        if (password !== undefined && password !== '') addField('password_hash', await bcrypt.hash(password, 10));
 
         if (fields.length === 0) {
             return res.status(400).json({ error: 'ไม่มีข้อมูลที่ต้องการแก้ไข' });
@@ -1039,6 +1048,9 @@ app.patch('/api/admin/users/:id', authenticateToken, async (req, res) => {
         res.json({ message: 'บันทึกการแก้ไขสำเร็จ' });
     } catch (err) {
         console.error('Error updating user (admin):', err);
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+        }
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });

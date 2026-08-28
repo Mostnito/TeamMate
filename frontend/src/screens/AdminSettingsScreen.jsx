@@ -107,7 +107,7 @@ export default function AdminSettingsScreen({ v }) {
             imageUrl={v.currentUserAvatarUrl}
             onUploaded={(url) => v.updateCurrentUser({ avatarUrl: url })}
           />
-          <div style={{ fontSize: 11.5, color: '#6B7280' }}>คลิกหรือลากรูปมาวางเพื่อเปลี่ยนรูปโปรไฟล์<br />แนะนำขนาด 200×200px</div>
+          <div style={{ fontSize: 11.5, color: '#6B7280' }}>เปลี่ยนรูปโปรไฟล์<br />ขนาด 200×200px</div>
         </div>
         <div className="grid-2" style={{ gap: 12, marginBottom: 12 }}>
           <div>
