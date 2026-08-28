@@ -2,6 +2,10 @@ const express = require('express');
 const http = require("http");
 const cors = require('cors');
 const app = express();
+// trust exactly one reverse-proxy hop (nginx) so req.ip reflects the real client IP from
+// X-Forwarded-For instead of the proxy's own loopback connection - without this, every
+// logged IP is just 127.0.0.1 regardless of who actually made the request
+app.set('trust proxy', 1);
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -24,6 +28,11 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
+    // same reasoning as app.set('trust proxy', 1) above - Socket.IO's handshake.address is
+    // the reverse proxy's loopback connection, so read the real client IP from the header instead
+    const forwardedFor = socket.handshake.headers['x-forwarded-for'];
+    socket.clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : socket.handshake.address;
+
     socket.on('join_group', async (groupId) => {
         if (!(await isGroupMember(socket.userId, groupId))) return;
         socket.join(`group_${groupId}`);
@@ -61,7 +70,7 @@ io.on('connection', (socket) => {
                     `INSERT INTO reports (type, group_id, reporter_id, target_id, detail) VALUES ($1, $2, $3, $4, $5)`,
                     ['chat_message', groupId, socket.userId, msg.message_id, `ระบบตรวจพบคำไม่เหมาะสมโดยอัตโนมัติ: ${flagged.join(', ')}`]
                 );
-                logActivity(socket.userId, 'submit_report', 'report', msg.message_id, { ip: socket.handshake.address });
+                logActivity(socket.userId, 'submit_report', 'report', msg.message_id, { ip: socket.clientIp });
             }
         } catch (err) {
             console.error('Error sending chat message:', err);

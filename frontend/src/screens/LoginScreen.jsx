@@ -13,6 +13,10 @@ const inputLg = { ...input, fontSize: 15.5, padding: '13px 16px', borderRadius: 
 export default function LoginScreen({ v }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const onKeyDownSubmit = (e) => {
+    if (e.key === 'Enter' && !isSubmitting) handleSubmit();
+  };
+
   const handleSubmit = async () => {
     const { loginEmail, loginPassword } = v;
     if (!EMAIL_PATTERN.test(loginEmail)) {
@@ -64,12 +68,12 @@ export default function LoginScreen({ v }) {
           <div style={{ fontSize: 15, color: '#6B7280', marginBottom: 31 }}>กรอกข้อมูลบัญชีของคุณเพื่อดำเนินการต่อ</div>
           <div style={{ marginBottom: 19 }}>
             <div style={labelLg}>อีเมล</div>
-            <input value={v.loginEmail} onChange={v.onLoginEmailChange} placeholder="email@example.com" style={inputLg} />
+            <input value={v.loginEmail} onChange={v.onLoginEmailChange} onKeyDown={onKeyDownSubmit} placeholder="email@example.com" style={inputLg} />
           </div>
           <div style={{ marginBottom: 10 }}>
             <div style={labelLg}>รหัสผ่าน</div>
             <div style={{ position: 'relative' }}>
-              <input type={v.loginPwType} value={v.loginPassword} onChange={v.onLoginPasswordChange} placeholder="••••••" style={inputLg} />
+              <input type={v.loginPwType} value={v.loginPassword} onChange={v.onLoginPasswordChange} onKeyDown={onKeyDownSubmit} placeholder="••••••" style={inputLg} />
               <span onClick={v.toggleLoginPw} style={{ position: 'absolute', right: 16, top: 13, cursor: 'pointer', color: '#6B7280', fontSize: 18 }}>{v.loginPwIcon}</span>
             </div>
           </div>
