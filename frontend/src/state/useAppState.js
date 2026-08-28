@@ -53,7 +53,8 @@ const initialState = {
   currentUser: { name: '', firstName: '', studentId: '', userId: null, avatarUrl: '', title: '' },
   moderationQueue: initialModerationQueue,
   groupsData: initialGroupsData,
-  myTeamCount: 0
+  myTeamCount: 0,
+  viewedPublicId: null
 };
 
 export default function useAppState() {
@@ -68,14 +69,27 @@ export default function useAppState() {
 
   const go = (screen) => () => setState((s) => ({ ...s, screen }));
 
+  // opens a shareable user profile - pushes a real /profile/:publicId URL so the address bar
+  // is copy-pasteable, without pulling in a full router for just this one screen.
+  // publicId is an opaque random token (not the sequential user_id) so links can't be enumerated.
+  const openUserProfile = (publicId) => () => {
+    window.history.pushState(null, '', `/profile/${publicId}`);
+    setState((s) => ({ ...s, screen: 'userProfile', viewedPublicId: publicId }));
+  };
+  const closeUserProfile = (fallbackScreen) => () => {
+    window.history.pushState(null, '', '/');
+    setState((s) => ({ ...s, screen: fallbackScreen }));
+  };
+
   const onLoginEmailChange = (e) => setState((s) => ({ ...s, loginEmail: e.target.value }));
   const onLoginPasswordChange = (e) => setState((s) => ({ ...s, loginPassword: e.target.value }));
   const toggleLoginPw = () => setState((s) => ({ ...s, loginShowPw: !s.loginShowPw }));
 
   // actual authentication happens via /api/login directly in LoginScreen.jsx;
   // this just applies the resulting session to central state once that call succeeds
-  const completeLogin = (currentUser, isAdminMode) => setState((s) => ({
-    ...s, screen: isAdminMode ? 'admin' : 'dashboard', isAdminMode, currentUser
+  const completeLogin = (currentUser, isAdminMode, initialScreen) => setState((s) => ({
+    ...s, screen: initialScreen?.screen || (isAdminMode ? 'admin' : 'dashboard'), isAdminMode, currentUser,
+    viewedPublicId: initialScreen?.viewedPublicId ?? s.viewedPublicId
   }));
 
   const updateCurrentUser = (patch) => setState((s) => ({ ...s, currentUser: { ...s.currentUser, ...patch } }));
@@ -320,7 +334,7 @@ export default function useAppState() {
 
   const actions = {
     notify, stopPropagation, go, goSettings,
-    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser, setMyTeamCount,
+    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser, setMyTeamCount, openUserProfile, closeUserProfile,
     onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
     onGroupCreated, onJoinDigit, onGroupJoined, copyCode,
     openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, openTeamTasks, setTeamTab,

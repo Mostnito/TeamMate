@@ -235,12 +235,16 @@ CREATE TABLE shop_items (
 CREATE TABLE user_purchases (
     purchase_id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    item_id INTEGER NOT NULL REFERENCES shop_items(item_id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES shop_
+    items(item_id) ON DELETE CASCADE,
     purchased_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, item_id)
 );
 
 ALTER TABLE users ADD COLUMN equipped_title_id INTEGER REFERENCES shop_items(item_id) ON DELETE SET NULL;
+
+-- opaque, unguessable identifier used in shareable profile URLs instead of the sequential user_id
+ALTER TABLE users ADD COLUMN public_id VARCHAR(24) UNIQUE NOT NULL;
 
 INSERT INTO gender (gender_type) VALUES
 ('ชาย'),

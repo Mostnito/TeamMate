@@ -12,6 +12,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { Server } = require("socket.io");
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -52,7 +53,7 @@ io.on('connection', (socket) => {
                  RETURNING message_id, group_id, user_id, content, sent_at`,
                 [groupId, socket.userId, censored]
             );
-            const userResult = await pool.query('SELECT firstname, lastname, avatar_path FROM users WHERE user_id = $1', [socket.userId]);
+            const userResult = await pool.query('SELECT firstname, lastname, avatar_path, public_id FROM users WHERE user_id = $1', [socket.userId]);
             const msg = result.rows[0];
             const sender = userResult.rows[0];
             io.to(`group_${groupId}`).emit('message_received', {
@@ -61,6 +62,7 @@ io.on('connection', (socket) => {
                 senderId: msg.user_id,
                 senderName: `${sender.firstname} ${sender.lastname}`,
                 senderAvatarUrl: sender.avatar_path,
+                senderPublicId: sender.public_id,
                 content: msg.content,
                 sentAt: msg.sent_at
             });
@@ -203,11 +205,12 @@ app.post('/api/register', async (req, res) => {
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
+        const publicId = crypto.randomBytes(12).toString('base64url');
 
         const userResult = await client.query(
-            `INSERT INTO users (gender_id, student_id, firstname, lastname, nickname, email, password_hash, birth_date, phone)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING user_id`,
-            [genderId || null, studentId || null, firstName, lastName, nickname, email, passwordHash, birthdate || null, phone || null]
+            `INSERT INTO users (gender_id, student_id, firstname, lastname, nickname, email, password_hash, birth_date, phone, public_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING user_id`,
+            [genderId || null, studentId || null, firstName, lastName, nickname, email, passwordHash, birthdate || null, phone || null, publicId]
         );
         const userId = userResult.rows[0].user_id;
 
@@ -332,6 +335,64 @@ app.get('/api/user/:id', authenticateToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error fetching user profile:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Get any user's shareable public profile - name/avatar/title/skills/email/phone + earned achievements only
+//(no ownership check, unlike GET /api/user/:id - still excludes birthdate/gender,
+// which stay visible only to the profile owner via the self-only route above)
+//looked up by public_id (opaque random token), never the sequential user_id, so profile URLs
+//can't be enumerated by guessing numbers
+app.get('/api/profile/:publicId', authenticateToken, async (req, res) => {
+    const publicId = req.params.publicId;
+    try {
+        const userLookup = await pool.query('SELECT user_id FROM users WHERE public_id = $1', [publicId]);
+        if (userLookup.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
+        }
+        const userId = userLookup.rows[0].user_id;
+
+        const [userResult, skillsResult, achievementsResult] = await Promise.all([
+            pool.query(
+                `SELECT u.public_id, u.firstname, u.lastname, u.nickname, u.student_id, u.avatar_path, u.email, u.phone, si.name AS title
+                 FROM users u LEFT JOIN shop_items si ON si.item_id = u.equipped_title_id WHERE u.user_id = $1`,
+                [userId]
+            ),
+            pool.query(
+                'SELECT s.skill_name FROM user_skills us JOIN skills s ON s.skill_id = us.skill_id WHERE us.user_id = $1',
+                [userId]
+            ),
+            pool.query(
+                `SELECT a.achievement_id, a.name, a.description, a.img_path, a.points_reward, ua.earned_at
+                 FROM user_achievements ua JOIN achievements a ON a.achievement_id = ua.achievement_id
+                 WHERE ua.user_id = $1 ORDER BY ua.earned_at DESC`,
+                [userId]
+            )
+        ]);
+        const user = userResult.rows[0];
+        res.json({
+            publicId: user.public_id,
+            firstName: user.firstname,
+            lastName: user.lastname,
+            nickname: user.nickname,
+            studentId: user.student_id,
+            avatarUrl: user.avatar_path,
+            email: user.email,
+            phone: user.phone,
+            title: user.title,
+            skills: skillsResult.rows.map((r) => r.skill_name),
+            achievements: achievementsResult.rows.map((a) => ({
+                achievementId: a.achievement_id,
+                name: a.name,
+                description: a.description,
+                imgPath: a.img_path,
+                pointsReward: a.points_reward,
+                earnedAt: a.earned_at
+            }))
+        });
+    } catch (err) {
+        console.error('Error fetching public profile:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });
@@ -1881,7 +1942,7 @@ app.get('/api/group/:id/members', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
         }
         const result = await pool.query(
-            `SELECT u.user_id, u.firstname, u.lastname, u.nickname, u.student_id, u.avatar_path, gm.role,
+            `SELECT u.user_id, u.firstname, u.lastname, u.nickname, u.student_id, u.avatar_path, u.public_id, gm.role,
                     COALESCE(array_agg(s.skill_name) FILTER (WHERE s.skill_name IS NOT NULL), '{}') AS skills
              FROM group_members gm
              JOIN users u ON u.user_id = gm.user_id
@@ -1894,6 +1955,7 @@ app.get('/api/group/:id/members', authenticateToken, async (req, res) => {
         );
         res.json(result.rows.map((r) => ({
             userId: r.user_id,
+            publicId: r.public_id,
             firstName: r.firstname,
             lastName: r.lastname,
             nickname: r.nickname,
@@ -2244,7 +2306,7 @@ app.get('/api/group/:id/messages', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
         }
         const result = await pool.query(
-            `SELECT m.message_id, m.group_id, m.user_id, m.content, m.sent_at, u.firstname, u.lastname, u.avatar_path
+            `SELECT m.message_id, m.group_id, m.user_id, m.content, m.sent_at, u.firstname, u.lastname, u.avatar_path, u.public_id
              FROM messages m
              JOIN users u ON u.user_id = m.user_id
              WHERE m.group_id = $1
@@ -2258,6 +2320,7 @@ app.get('/api/group/:id/messages', authenticateToken, async (req, res) => {
             senderId: r.user_id,
             senderName: `${r.firstname} ${r.lastname}`,
             senderAvatarUrl: r.avatar_path,
+            senderPublicId: r.public_id,
             content: r.content,
             sentAt: r.sent_at
         })));

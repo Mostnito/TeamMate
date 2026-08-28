@@ -240,7 +240,7 @@ export default function TeamDetailScreen({ v }) {
           {members.map((m) => (
             <div key={m.userId} style={cardSm}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div onClick={v.openUserProfile(m.publicId)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} title={`ดูโปรไฟล์ของ ${m.firstName} ${m.lastName}`}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
                     {(m.firstName.charAt(0) + m.lastName.charAt(0)).toUpperCase()}
                   </div>

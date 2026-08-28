@@ -43,6 +43,7 @@ import AdminAchievementsScreen from './screens/AdminAchievementsScreen.jsx';
 import AdminTermsScreen from './screens/AdminTermsScreen.jsx';
 import ShopScreen from './screens/ShopScreen.jsx';
 import AdminShopScreen from './screens/AdminShopScreen.jsx';
+import UserProfileScreen from './screens/UserProfileScreen.jsx';
 import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 
 export default function App() {
@@ -62,7 +63,10 @@ export default function App() {
       .then((res) => {
         const isAdminMode = res.data.role === 'admin';
         const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId, avatarUrl: res.data.avatarUrl || '', title: res.data.title || '' };
-        actions.completeLogin(currentUser, isAdminMode);
+        // supports opening a shared /profile/:id link directly, without a full router
+        const profileMatch = window.location.pathname.match(/^\/profile\/([\w-]+)$/);
+        const initialScreen = profileMatch ? { screen: 'userProfile', viewedPublicId: profileMatch[1] } : null;
+        actions.completeLogin(currentUser, isAdminMode, initialScreen);
         return axios.get('/api/group/data', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
       })
       .then((groupsRes) => {
@@ -127,6 +131,7 @@ export default function App() {
             {v.isAdminTerms && <AdminTermsScreen />}
             {v.isShop && <ShopScreen />}
             {v.isAdminShop && <AdminShopScreen />}
+            {v.isUserProfile && <UserProfileScreen v={v} />}
             {v.isAdminSettings && <AdminSettingsScreen v={v} />}
           </div>
         </div>

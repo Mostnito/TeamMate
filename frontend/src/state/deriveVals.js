@@ -290,6 +290,7 @@ export default function deriveVals(state, actions) {
     isAdminTerms: s.screen === 'adminTerms',
     isShop: s.screen === 'shop',
     isAdminShop: s.screen === 'adminShop',
+    isUserProfile: s.screen === 'userProfile', viewedPublicId: s.viewedPublicId, openUserProfile: actions.openUserProfile, closeUserProfile: actions.closeUserProfile,
     isAdminSettings: s.screen === 'adminSettings',
     hasModerationItems: moderationItems.length > 0, noModerationItems: moderationItems.length === 0, moderationItems,
     errorLogs: errorLogsData, securityAlerts: securityAlertsData,

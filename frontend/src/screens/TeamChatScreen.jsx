@@ -87,10 +87,14 @@ export default function TeamChatScreen({ v }) {
             <div key={msg.messageId} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '60%' }}>
                 {!mine && (
-                  <div style={{
-                    width: 26, height: 26, borderRadius: '50%', flexShrink: 0, color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11,
-                    background: msg.senderAvatarUrl ? `#EFF6FF url(${msg.senderAvatarUrl}) center/cover no-repeat` : '#EFF6FF'
-                  }}>
+                  <div
+                    onClick={v.openUserProfile(msg.senderPublicId)}
+                    title={`ดูโปรไฟล์ของ ${msg.senderName}`}
+                    style={{
+                      width: 26, height: 26, borderRadius: '50%', flexShrink: 0, color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, cursor: 'pointer',
+                      background: msg.senderAvatarUrl ? `#EFF6FF url(${msg.senderAvatarUrl}) center/cover no-repeat` : '#EFF6FF'
+                    }}
+                  >
                     {!msg.senderAvatarUrl && msg.senderName.charAt(0).toUpperCase()}
                   </div>
                 )}
