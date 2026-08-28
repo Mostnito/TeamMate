@@ -84,7 +84,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
           </>
         ) : (
           <>
-            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>ส่งรหัสยืนยันแล้วไปที่ {email}</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>ส่งรหัสยืนยันแล้วไปที่ {email} หากไม่พบโปรดตรวจสอบในจดหมายขยะ</div>
             <div style={{ marginBottom: 14 }}>
               <div style={label}>รหัสยืนยัน (6 หลัก)</div>
               <input value={code} onChange={(e) => setCode(e.target.value)} type="text" placeholder="000000" style={input} />

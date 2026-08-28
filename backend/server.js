@@ -290,7 +290,7 @@ app.post('/api/login', async (req, res) => {
 //regardless of whether the email exists, so this endpoint can't be used to enumerate accounts
 app.post('/api/forgot-password', async (req, res) => {
     const { email } = req.body;
-    const genericResponse = { message: 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งรหัสยืนยันไปให้แล้ว' };
+    const genericResponse = { message: 'ส่งรหัสยืนยันแล้ว' };
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
         return res.status(400).json({ error: 'กรุณากรอกอีเมลให้ถูกต้อง' });
     }
@@ -313,7 +313,7 @@ app.post('/api/forgot-password', async (req, res) => {
         const code = String(Math.floor(100000 + Math.random() * 900000));
         const codeHash = await bcrypt.hash(code, 10);
         await pool.query(
-            `INSERT INTO password_reset_codes (user_id, code_hash, expires_at) VALUES ($1, $2, now() + interval '15 minutes')`,
+            `INSERT INTO password_reset_codes (user_id, code_hash, expires_at) VALUES ($1, $2, now() + interval '5 minutes')`,
             [user.user_id, codeHash]
         );
 
@@ -321,7 +321,7 @@ app.post('/api/forgot-password', async (req, res) => {
             from: process.env.GMAIL_USER,
             to: email,
             subject: '[TeamMate] รีเซ็ตรหัสผ่านของคุณ',
-            text: `สวัสดีคุณ ${user.firstname},\n\nรหัสยืนยันสำหรับรีเซ็ตรหัสผ่านของคุณคือ: ${code}\n\nรหัสนี้จะหมดอายุใน 15 นาที หากคุณไม่ได้ร้องขอการรีเซ็ตรหัสผ่าน กรุณาติดต่อผู้ดูแลระบบของ TeamMate\n\nขอบคุณ,\nทีมงาน TeamMate`
+            text: `สวัสดีคุณ ${user.firstname},\n\nรหัสยืนยันสำหรับรีเซ็ตรหัสผ่านของคุณคือ: ${code}\n\nรหัสนี้จะหมดอายุใน 5 นาที หากคุณไม่ได้ร้องขอการรีเซ็ตรหัสผ่าน กรุณาติดต่อผู้ดูแลระบบของ TeamMate\n\nขอบคุณ,\nทีมงาน TeamMate`
         });
 
         res.json(genericResponse);
