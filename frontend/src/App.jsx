@@ -82,6 +82,18 @@ export default function App() {
     return () => controller.abort();
   }, []);
 
+  // the /profile/:publicId URL is only ever pushed by openUserProfile; if navigation away from
+  // that screen happens through any other path (sidebar clicks, opening a team, etc.) the address
+  // bar would otherwise keep showing the old profile link even though a different screen is active.
+  // Guarded on isCheckingSession so this never fires before the session-check effect above has had
+  // a chance to resolve a shared /profile/:id link into screen: 'userProfile' on initial page load.
+  useEffect(() => {
+    if (isCheckingSession) return;
+    if (state.screen !== 'userProfile' && window.location.pathname !== '/') {
+      window.history.pushState(null, '', '/');
+    }
+  }, [state.screen, isCheckingSession]);
+
   if (isCheckingSession) {
     return <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#EFF6FF', color: '#6B7280', fontSize: 13.5 }}>กำลังโหลด...</div>;
   }
