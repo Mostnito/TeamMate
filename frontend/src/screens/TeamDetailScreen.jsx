@@ -306,7 +306,7 @@ export default function TeamDetailScreen({ v }) {
                     </div>
                   </div>
                 ))}
-                {isLeader && (
+                {isLeader && col.key === 'pending' && (
                   <div onClick={() => openBoardModal(col.key)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, border: '1.5px dashed #E5E7EB', borderRadius: 10, padding: 10, textAlign: 'center', fontSize: 11.5, color: '#9CA3AF', cursor: 'pointer' }}><IoMdAdd size={13} /> เพิ่ม Task</div>
                 )}
               </div>

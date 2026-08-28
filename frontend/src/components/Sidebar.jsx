@@ -11,39 +11,39 @@ export default function Sidebar({ v, isDrawerOpen, onCloseDrawer }) {
   }, [isDrawerOpen, onCloseDrawer]);
 
   return (
-    <div className={`app-sidebar${isDrawerOpen ? ' app-sidebar--open' : ''}`} style={{ width: 220, minWidth: 220, background: '#FFFFFF', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '20px 18px', borderBottom: '1px solid #F3F4F6' }}>
-        <img src={logo} style={{ width: 34, height: 34, objectFit: 'contain' }} alt="TeamMate logo" />
+    <div className={`app-sidebar${isDrawerOpen ? ' app-sidebar--open' : ''}`} style={{ width: 264, minWidth: 264, background: '#FFFFFF', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '24px 22px', borderBottom: '1px solid #F3F4F6' }}>
+        <img src={logo} style={{ width: 41, height: 41, objectFit: 'contain' }} alt="TeamMate logo" />
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>TeamMate</div>
-          <div style={{ fontSize: 10.5, color: '#6B7280' }}>แพลตฟอร์มทำงานกลุ่ม</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: '#111827' }}>TeamMate</div>
+          <div style={{ fontSize: 12.5, color: '#6B7280' }}>แพลตฟอร์มทำงานกลุ่ม</div>
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '17px 12px', display: 'flex', flexDirection: 'column', gap: 3 }}>
         {v.navItems.map((item) => (
           <div
             key={item.key}
             onClick={() => { item.onClick(); onCloseDrawer(); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, background: item.active ? '#F3F8FF' : 'transparent' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontSize: 16, fontWeight: 500, background: item.active ? '#F3F8FF' : 'transparent' }}
           >
-            <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><item.icon size={15} color={item.iconColor} /></span>
+            <span style={{ width: 24, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><item.icon size={18} color={item.iconColor} /></span>
             <span style={{ color: item.textColor }}>{item.label}</span>
           </div>
         ))}
       </div>
-      <div style={{ padding: 10, borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ padding: 12, borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div
           onClick={() => { v.goSettings(); onCloseDrawer(); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, color: v.settingsTextColor }}
+          style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontSize: 16, fontWeight: 500, color: v.settingsTextColor }}
         >
-          <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><IoMdSettings size={15} color={v.settingsIconColor} /></span>
+          <span style={{ width: 24, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><IoMdSettings size={18} color={v.settingsIconColor} /></span>
           <span>ตั้งค่า</span>
         </div>
         <div
           onClick={v.handleLogout}
-          style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 500, color: '#DC2626' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontSize: 16, fontWeight: 500, color: '#DC2626' }}
         >
-          <span style={{ width: 20, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><IoMdLogOut size={15} /></span>
+          <span style={{ width: 24, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><IoMdLogOut size={18} /></span>
           <span>ออกจากระบบ</span>
         </div>
       </div>

@@ -1,26 +1,30 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { label, input, btnPrimary } from '../styles/common.js';
+import { label, input, btnPrimary, btnSecondary } from '../styles/common.js';
 import { IoMdArrowBack } from 'react-icons/io';
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
+
+// login/register pages are scaled ~120% up from the shared base styles for extra readability
+const labelLg = { ...label, fontSize: 14.5 };
+const inputLg = { ...input, fontSize: 15.5, padding: '13px 16px', borderRadius: 11 };
 
 // major heading ("1. คำนิยาม") gets emphasis; numbered sub-items ("5.1", "6.3") stay plain body text
 const MAJOR_HEADING_PATTERN = /^\d+\.\s/;
 function renderTermsContent(text) {
   return (text || '').split('\n').map((line, i) => {
     const trimmed = line.trim();
-    if (!trimmed) return <div key={i} style={{ height: 12 }} />;
+    if (!trimmed) return <div key={i} style={{ height: 14 }} />;
     if (MAJOR_HEADING_PATTERN.test(trimmed)) {
       return (
-        <div key={i} style={{ fontSize: 15, fontWeight: 800, color: '#111827', lineHeight: 1.6, marginTop: 22, paddingBottom: 6, borderBottom: '1px solid #F3F4F6' }}>
+        <div key={i} style={{ fontSize: 18, fontWeight: 800, color: '#111827', lineHeight: 1.6, marginTop: 26, paddingBottom: 7, borderBottom: '1px solid #F3F4F6' }}>
           {trimmed}
         </div>
       );
     }
     return (
-      <div key={i} style={{ fontSize: 12.5, fontWeight: 400, color: '#4B5A6E', lineHeight: 1.8 }}>
+      <div key={i} style={{ fontSize: 15, fontWeight: 400, color: '#4B5A6E', lineHeight: 1.8 }}>
         {trimmed}
       </div>
     );
@@ -39,7 +43,17 @@ function validateSkillOther(raw) {
   return '';
 }
 
+const STEPS = [
+  { title: 'ข้อมูลส่วนตัว' },
+  { title: 'เพศและวันเกิด' },
+  { title: 'ความถนัด' },
+  { title: 'ข้อมูลติดต่อ' },
+  { title: 'ตั้งรหัสผ่าน' },
+  { title: 'ข้อกำหนดการใช้งาน' }
+];
+
 export default function SignupScreen({ v }) {
+  const [step, setStep] = useState(0);
   const [genders, setGenders] = useState([]);
   const [skills, setSkills] = useState([]);
   const [skillOtherError, setSkillOtherError] = useState('');
@@ -47,7 +61,6 @@ export default function SignupScreen({ v }) {
   const [termsOfService, setTermsOfService] = useState('');
   const [hasScrolledTerms, setHasScrolledTerms] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -74,46 +87,59 @@ export default function SignupScreen({ v }) {
     setSkillOtherError(e.target.value.trim() ? validateSkillOther(e.target.value) : '');
   };
 
+  // each step is only ever visible after every step before it already passed, so this only
+  // needs to check the fields that step itself owns -- earlier fields are guaranteed valid already
+  const validateStep = (stepIndex) => {
+    const su = v.su;
+    if (stepIndex === 0) {
+      if (!su.firstName || !su.lastName || !su.nickname) return 'กรุณากรอกข้อมูลให้ครบถ้วน';
+    }
+    if (stepIndex === 1) {
+      if (!su.gender) return 'กรุณาเลือกเพศ';
+      if (!su.birthdate) return 'กรุณาเลือกวันเกิด';
+    }
+    if (stepIndex === 2) {
+      if (v.showSkillOtherInput) {
+        const err = validateSkillOther(su.skillOther);
+        if (err) { setSkillOtherError(err); return err; }
+      }
+    }
+    if (stepIndex === 3) {
+      if (!su.email || !EMAIL_PATTERN.test(su.email)) return 'กรุณากรอกอีเมลให้ถูกต้อง';
+      if (!/^[0-9]+$/.test((su.phone || '').trim())) return 'กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลขเท่านั้น';
+    }
+    if (stepIndex === 4) {
+      if (!su.password || su.password.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+      if (su.password !== su.confirmPassword) return 'รหัสผ่านไม่ตรงกัน';
+    }
+    return '';
+  };
+
+  const handleNext = () => {
+    const err = validateStep(step);
+    if (err) { toast.error(err); return; }
+    setStep((s) => Math.min(STEPS.length - 1, s + 1));
+  };
+  const handleBack = () => setStep((s) => Math.max(0, s - 1));
+
   const handleSubmit = async () => {
     const su = v.su;
 
-    // 1) frontend validation -- checked before we ever call the api
-    if (!su.firstName || !su.lastName || !su.nickname || !su.email) {
-      toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
-      return;
-    }
-    if (!su.gender) {
-      toast.error('กรุณาเลือกเพศ');
-      return;
-    }
-    if (!su.birthdate) {
-      toast.error('กรุณาเลือกวันเกิด');
-      return;
-    }
-    if (!/^[0-9]+$/.test((su.phone || '').trim())) {
-      toast.error('กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลขเท่านั้น');
-      return;
-    }
-    if (!EMAIL_PATTERN.test(su.email)) {
-      toast.error('กรุณากรอกอีเมลให้ถูกต้อง');
-      return;
-    }
-    if (!su.password || su.password.length < 6) {
-      toast.error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
-      return;
-    }
-    if (su.password !== su.confirmPassword) {
-      toast.error('รหัสผ่านไม่ตรงกัน');
-      return;
+    // full re-validation as a final safety net -- each step already gated its own fields,
+    // this just guarantees nothing slipped through (e.g. state edited out of band)
+    for (let i = 0; i < STEPS.length - 1; i++) {
+      const err = validateStep(i);
+      if (err) { toast.error(err); setStep(i); return; }
     }
     if (requiresTerms && !agreedToTerms) {
       toast.error('กรุณาอ่านและยอมรับข้อกำหนดการใช้งานก่อนสมัครสมาชิก');
       return;
     }
+
     let finalSkills = su.skills;
     if (v.showSkillOtherInput) {
       const err = validateSkillOther(su.skillOther);
-      if (err) { setSkillOtherError(err); toast.error(err); return; }
+      if (err) { setSkillOtherError(err); toast.error(err); setStep(2); return; }
       finalSkills = su.skills.map((s) => (s === 'อื่น ๆ' ? su.skillOther.trim() : s));
     }
 
@@ -143,122 +169,148 @@ export default function SignupScreen({ v }) {
     }
   };
 
+  const isLastStep = step === STEPS.length - 1;
+
   return (
     <div style={{ minHeight: '100%' }}>
-      <div style={{ height: 56, background: '#2563EB', display: 'flex', alignItems: 'center', padding: '0 24px', gap: 10, color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer' }} onClick={v.goLogin}>
-        <IoMdArrowBack size={16} /><span>สมัครสมาชิก TeamMate</span>
+      <div style={{ height: 67, background: '#2563EB', display: 'flex', alignItems: 'center', padding: '0 29px', gap: 12, color: '#fff', fontWeight: 600, fontSize: 17, cursor: 'pointer' }} onClick={v.goLogin}>
+        <IoMdArrowBack size={19} /><span>สมัครสมาชิก TeamMate</span>
       </div>
-      <div style={{ maxWidth: 760, margin: '28px auto', background: '#fff', borderRadius: 16, padding: 32, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
-        <div className="grid-2" style={{ gap: '18px 24px' }}>
-          <div>
-            <div style={label}>ชื่อจริง</div>
-            <input value={v.su.firstName} onChange={v.onSuFirstName} placeholder="ชื่อจริง" style={input} />
+      <div style={{ maxWidth: 640, margin: '34px auto', background: '#fff', borderRadius: 19, padding: 38, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ fontSize: 13.5, color: '#6B7280', marginBottom: 9 }}>ขั้นตอนที่ {step + 1} จาก {STEPS.length} · {STEPS[step].title}</div>
+          <div style={{ height: 7, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${((step + 1) / STEPS.length) * 100}%`, background: '#2563EB', borderRadius: 4, transition: 'width 0.2s ease' }} />
           </div>
-          <div>
-            <div style={label}>นามสกุล</div>
-            <input value={v.su.lastName} onChange={v.onSuLastName} placeholder="นามสกุล" style={input} />
-          </div>
-          <div>
-            <div style={label}>ชื่อเล่น</div>
-            <input value={v.su.nickname} onChange={v.onSuNickname} placeholder="ชื่อเล่น" style={input} />
-          </div>
-          <div>
-            <div style={label}>รหัสนิสิต</div>
-            <input value={v.su.studentId} onChange={v.onSuStudentId} placeholder="65x xxxxxx" style={input} />
-          </div>
-          <div>
-            <div style={label}>เพศ</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {genders.map((g) => {
-                const selected = v.su.gender === g.gender_type;
-                return (
-                  <div key={g.gender_id} onClick={v.toggleGender(g.gender_type)} style={{ padding: '9px 16px', borderRadius: 20, fontSize: 12.5, cursor: 'pointer', background: selected ? '#2563EB' : '#F3F4F6', color: selected ? '#fff' : '#6B7280', fontWeight: 600 }}>{g.gender_type}</div>
-                );
-              })}
+        </div>
+
+        {step === 0 && (
+          <div className="grid-2" style={{ gap: '22px 29px' }}>
+            <div>
+              <div style={labelLg}>ชื่อจริง</div>
+              <input value={v.su.firstName} onChange={v.onSuFirstName} placeholder="ชื่อจริง" style={inputLg} />
             </div>
-          </div>
-          <div>
-            <div style={label}>วันเกิด</div>
-            <input type="date" value={v.su.birthdate} onChange={v.onSuBirthdate} style={{ ...input, padding: '10.5px 13px' }} />
-          </div>
-          <div>
-            <div style={label}>อีเมล</div>
-            <input value={v.su.email} onChange={v.onSuEmail} placeholder="username@gmail.com" style={input} />
-          </div>
-          <div>
-            <div style={label}>เบอร์โทรศัพท์</div>
-            <input value={v.su.phone} onChange={v.onSuPhone} placeholder="0xx-xxx-xxxx" style={input} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: 18 }}>
-          <div style={{ ...label, marginBottom: 8 }}>ความถนัด / ประสบการณ์</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {[...skills.map((s) => s.skill_name), 'อื่น ๆ'].map((label) => {
-              const selected = v.su.skills.includes(label);
-              return (
-                <div key={label} onClick={v.toggleSkill(label)} style={{ padding: '8px 15px', borderRadius: 20, fontSize: 12.5, cursor: 'pointer', background: selected ? '#2563EB' : '#F3F4F6', color: selected ? '#fff' : '#6B7280', fontWeight: 600 }}>{label}</div>
-              );
-            })}
-          </div>
-          {v.showSkillOtherInput && (
-            <>
-              <input value={v.su.skillOther} onChange={onSkillOtherChange} placeholder="โปรดระบุความถนัดอื่น ๆ" style={{ ...input, marginTop: 8 }} />
-              {skillOtherError && <div style={{ color: '#DC2626', fontSize: 11.5, marginTop: 6 }}>{skillOtherError}</div>}
-            </>
-          )}
-        </div>
-
-        <div className="grid-2" style={{ gap: '18px 24px', marginTop: 18 }}>
-          <div>
-            <div style={label}>รหัสผ่าน</div>
-            <input type="password" value={v.su.password} onChange={v.onSuPassword} placeholder="••••••" style={input} />
-          </div>
-          <div>
-            <div style={label}>ยืนยันรหัสผ่าน</div>
-            <input type="password" value={v.su.confirmPassword} onChange={v.onSuConfirmPassword} placeholder="••••••" style={input} />
-          </div>
-        </div>
-
-        {requiresTerms && (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 20 }}>
-            <input
-              type="checkbox"
-              checked={agreedToTerms}
-              disabled={!hasScrolledTerms}
-              onChange={(e) => setAgreedToTerms(e.target.checked)}
-              style={{ marginTop: 3, width: 15, height: 15, flexShrink: 0, cursor: hasScrolledTerms ? 'pointer' : 'not-allowed' }}
-            />
-            <div style={{ fontSize: 12.5, color: '#374151', lineHeight: 1.7 }}>
-              ฉันได้อ่านและยอมรับ{' '}
-              <span onClick={() => setIsTermsModalOpen(true)} style={{ color: '#2563EB', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>
-                ข้อกำหนดการใช้งาน
-              </span>
+            <div>
+              <div style={labelLg}>นามสกุล</div>
+              <input value={v.su.lastName} onChange={v.onSuLastName} placeholder="นามสกุล" style={inputLg} />
+            </div>
+            <div>
+              <div style={labelLg}>ชื่อเล่น</div>
+              <input value={v.su.nickname} onChange={v.onSuNickname} placeholder="ชื่อเล่น" style={inputLg} />
+            </div>
+            <div>
+              <div style={labelLg}>รหัสนิสิต</div>
+              <input value={v.su.studentId} onChange={v.onSuStudentId} placeholder="65x xxxxxx" style={inputLg} />
             </div>
           </div>
         )}
 
-        <button onClick={handleSubmit} disabled={isSubmitting || (requiresTerms && !agreedToTerms)} style={{ ...btnPrimary, width: '100%', padding: 13, borderRadius: 10, fontSize: 14, marginTop: 20, opacity: isSubmitting || (requiresTerms && !agreedToTerms) ? 0.7 : 1, cursor: isSubmitting || (requiresTerms && !agreedToTerms) ? 'not-allowed' : 'pointer' }}>
-          {isSubmitting ? 'กำลังสมัครสมาชิก...' : 'สมัครสมาชิก'}
-        </button>
-      </div>
-
-      {isTermsModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIsTermsModalOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 60px)', background: '#fff', borderRadius: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '20px 26px 16px', borderBottom: '1px solid #F3F4F6' }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>ข้อกำหนดการใช้งาน</div>
-              <div style={{ fontSize: 11.5, color: '#9CA3AF', marginTop: 3 }}>เลื่อนอ่านจนจบเพื่อเปิดใช้งานช่องยอมรับ</div>
+        {step === 1 && (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={labelLg}>เพศ</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {genders.map((g) => {
+                  const selected = v.su.gender === g.gender_type;
+                  return (
+                    <div key={g.gender_id} onClick={v.toggleGender(g.gender_type)} style={{ padding: '11px 19px', borderRadius: 24, fontSize: 15, cursor: 'pointer', background: selected ? '#2563EB' : '#F3F4F6', color: selected ? '#fff' : '#6B7280', fontWeight: 600 }}>{g.gender_type}</div>
+                  );
+                })}
+              </div>
             </div>
-            <div onScroll={handleTermsScroll} style={{ flex: 1, overflowY: 'auto', padding: '18px 26px' }}>
-              {renderTermsContent(termsOfService)}
-            </div>
-            <div style={{ padding: '14px 26px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setIsTermsModalOpen(false)} style={{ ...btnPrimary, padding: '10px 24px' }}>ปิด</button>
+            <div>
+              <div style={labelLg}>วันเกิด</div>
+              <input type="date" value={v.su.birthdate} onChange={v.onSuBirthdate} style={inputLg} />
             </div>
           </div>
+        )}
+
+        {step === 2 && (
+          <div>
+            <div style={{ ...labelLg, marginBottom: 10 }}>ความถนัด / ประสบการณ์</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {[...skills.map((s) => s.skill_name), 'อื่น ๆ'].map((label) => {
+                const selected = v.su.skills.includes(label);
+                return (
+                  <div key={label} onClick={v.toggleSkill(label)} style={{ padding: '10px 18px', borderRadius: 24, fontSize: 15, cursor: 'pointer', background: selected ? '#2563EB' : '#F3F4F6', color: selected ? '#fff' : '#6B7280', fontWeight: 600 }}>{label}</div>
+                );
+              })}
+            </div>
+            {v.showSkillOtherInput && (
+              <>
+                <input value={v.su.skillOther} onChange={onSkillOtherChange} placeholder="โปรดระบุความถนัดอื่น ๆ" style={{ ...inputLg, marginTop: 10 }} />
+                {skillOtherError && <div style={{ color: '#DC2626', fontSize: 14, marginTop: 7 }}>{skillOtherError}</div>}
+              </>
+            )}
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="grid-2" style={{ gap: '22px 29px' }}>
+            <div>
+              <div style={labelLg}>อีเมล</div>
+              <input value={v.su.email} onChange={v.onSuEmail} placeholder="username@gmail.com" style={inputLg} />
+            </div>
+            <div>
+              <div style={labelLg}>เบอร์โทรศัพท์</div>
+              <input value={v.su.phone} onChange={v.onSuPhone} placeholder="0xx-xxx-xxxx" style={inputLg} />
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="grid-2" style={{ gap: '22px 29px' }}>
+            <div>
+              <div style={labelLg}>รหัสผ่าน</div>
+              <input type="password" value={v.su.password} onChange={v.onSuPassword} placeholder="••••••" style={inputLg} />
+            </div>
+            <div>
+              <div style={labelLg}>ยืนยันรหัสผ่าน</div>
+              <input type="password" value={v.su.confirmPassword} onChange={v.onSuConfirmPassword} placeholder="••••••" style={inputLg} />
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          requiresTerms ? (
+            <div>
+              <div
+                onScroll={handleTermsScroll}
+                style={{ height: 340, overflowY: 'auto', border: '1px solid #E5E7EB', borderRadius: 12, background: '#F9FAFB', padding: '20px 22px', marginBottom: 16 }}
+              >
+                {renderTermsContent(termsOfService)}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  disabled={!hasScrolledTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  style={{ marginTop: 4, width: 18, height: 18, flexShrink: 0, cursor: hasScrolledTerms ? 'pointer' : 'not-allowed' }}
+                />
+                <div style={{ fontSize: 15, color: '#374151', lineHeight: 1.7 }}>
+                  ฉันได้อ่านและยอมรับข้อกำหนดการใช้งาน
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 14, color: '#6B7280' }}>ตรวจสอบข้อมูลของคุณเรียบร้อยแล้ว กดสมัครสมาชิกเพื่อดำเนินการต่อ</div>
+          )
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 30 }}>
+          {step > 0 ? (
+            <button onClick={handleBack} disabled={isSubmitting} style={{ ...btnSecondary, padding: '13px 26px', fontSize: 15, borderRadius: 12 }}>ย้อนกลับ</button>
+          ) : <div />}
+          {isLastStep ? (
+            <button onClick={handleSubmit} disabled={isSubmitting || (requiresTerms && !agreedToTerms)} style={{ ...btnPrimary, padding: '13px 30px', fontSize: 15, borderRadius: 12, opacity: isSubmitting || (requiresTerms && !agreedToTerms) ? 0.7 : 1, cursor: isSubmitting || (requiresTerms && !agreedToTerms) ? 'not-allowed' : 'pointer' }}>
+              {isSubmitting ? 'กำลังสมัครสมาชิก...' : 'สมัครสมาชิก'}
+            </button>
+          ) : (
+            <button onClick={handleNext} style={{ ...btnPrimary, padding: '13px 30px', fontSize: 15, borderRadius: 12 }}>ถัดไป</button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

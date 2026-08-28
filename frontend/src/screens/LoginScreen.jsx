@@ -6,6 +6,10 @@ import { label, input, btnPrimary } from '../styles/common.js';
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
+// login/register pages are scaled ~120% up from the shared base styles for extra readability
+const labelLg = { ...label, fontSize: 14.5 };
+const inputLg = { ...input, fontSize: 15.5, padding: '13px 16px', borderRadius: 11 };
+
 export default function LoginScreen({ v }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -49,34 +53,34 @@ export default function LoginScreen({ v }) {
 
   return (
     <div className="login-panes" style={{ minHeight: '100%' }}>
-      <div style={{ flex: 1, background: 'linear-gradient(160deg,#2563EB,#1D4ED8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, color: '#fff' }}>
-        <img src={logo} style={{ width: 96, height: 96, objectFit: 'contain', background: '#fff', borderRadius: 20, padding: 14, marginBottom: 22 }} alt="TeamMate logo" />
-        <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: 0.5 }}>TeamMate</div>
-        <div style={{ fontSize: 13.5, color: '#DBEAFE', marginTop: 10, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>จัดการงานกลุ่ม ทีม และไทม์ไลน์ของคุณในที่เดียว</div>
+      <div style={{ flex: 1, background: 'linear-gradient(160deg,#2563EB,#1D4ED8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, color: '#fff' }}>
+        <img src={logo} style={{ width: 115, height: 115, objectFit: 'contain', background: '#fff', borderRadius: 24, padding: 17, marginBottom: 26 }} alt="TeamMate logo" />
+        <div style={{ fontSize: 31, fontWeight: 700, letterSpacing: 0.6 }}>TeamMate</div>
+        <div style={{ fontSize: 16, color: '#DBEAFE', marginTop: 12, textAlign: 'center', maxWidth: 336, lineHeight: 1.7 }}>จัดการงานกลุ่ม ทีม และไทม์ไลน์ของคุณในที่เดียว</div>
       </div>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-        <div style={{ width: 360, maxWidth: 'calc(100vw - 32px)' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 6 }}>เข้าสู่ระบบ</div>
-          <div style={{ fontSize: 12.5, color: '#6B7280', marginBottom: 26 }}>กรอกข้อมูลบัญชีของคุณเพื่อดำเนินการต่อ</div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={label}>อีเมล</div>
-            <input value={v.loginEmail} onChange={v.onLoginEmailChange} placeholder="email@example.com" style={input} />
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48 }}>
+        <div style={{ width: 432, maxWidth: 'calc(100vw - 32px)' }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 7 }}>เข้าสู่ระบบ</div>
+          <div style={{ fontSize: 15, color: '#6B7280', marginBottom: 31 }}>กรอกข้อมูลบัญชีของคุณเพื่อดำเนินการต่อ</div>
+          <div style={{ marginBottom: 19 }}>
+            <div style={labelLg}>อีเมล</div>
+            <input value={v.loginEmail} onChange={v.onLoginEmailChange} placeholder="email@example.com" style={inputLg} />
           </div>
-          <div style={{ marginBottom: 8 }}>
-            <div style={label}>รหัสผ่าน</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelLg}>รหัสผ่าน</div>
             <div style={{ position: 'relative' }}>
-              <input type={v.loginPwType} value={v.loginPassword} onChange={v.onLoginPasswordChange} placeholder="••••••" style={input} />
-              <span onClick={v.toggleLoginPw} style={{ position: 'absolute', right: 13, top: 11, cursor: 'pointer', color: '#6B7280', fontSize: 15 }}>{v.loginPwIcon}</span>
+              <input type={v.loginPwType} value={v.loginPassword} onChange={v.onLoginPasswordChange} placeholder="••••••" style={inputLg} />
+              <span onClick={v.toggleLoginPw} style={{ position: 'absolute', right: 16, top: 13, cursor: 'pointer', color: '#6B7280', fontSize: 18 }}>{v.loginPwIcon}</span>
             </div>
           </div>
-          <div style={{ textAlign: 'right', marginBottom: 18 }}>
-            <span style={{ fontSize: 11.5, color: '#2563EB', cursor: 'pointer' }}>ลืมรหัสผ่าน?</span>
+          <div style={{ textAlign: 'right', marginBottom: 22 }}>
+            <span style={{ fontSize: 14, color: '#2563EB', cursor: 'pointer' }}>ลืมรหัสผ่าน?</span>
           </div>
-          <button onClick={handleSubmit} disabled={isSubmitting} style={{ ...btnPrimary, width: '100%', padding: 12, borderRadius: 10, fontSize: 14, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
+          <button onClick={handleSubmit} disabled={isSubmitting} style={{ ...btnPrimary, width: '100%', padding: 14, borderRadius: 12, fontSize: 17, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
             {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
-          <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12.5, color: '#6B7280' }}>หรือ</div>
-          <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12.5, color: '#6B7280' }}>
+          <div style={{ textAlign: 'center', marginTop: 19, fontSize: 15, color: '#6B7280' }}>หรือ</div>
+          <div style={{ textAlign: 'center', marginTop: 10, fontSize: 15, color: '#6B7280' }}>
             ยังไม่มีบัญชี? <span onClick={v.goSignup} style={{ color: '#2563EB', fontWeight: 600, cursor: 'pointer' }}>สมัครสมาชิก</span>
           </div>
         </div>
