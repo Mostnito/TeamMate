@@ -6,7 +6,6 @@ import { IoMdArrowBack, IoMdSend, IoMdFlag, IoMdImage, IoMdDownload } from 'reac
 import ReportModal from '../components/ReportModal.jsx';
 
 const IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const IMAGE_MAX_SIZE = 5 * 1024 * 1024;
 
 export default function TeamChatScreen({ v }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -119,10 +118,6 @@ export default function TeamChatScreen({ v }) {
     if (!file) return;
     if (!IMAGE_ALLOWED_TYPES.includes(file.type)) {
       toast.error('รองรับเฉพาะไฟล์ JPG, PNG, WEBP เท่านั้น');
-      return;
-    }
-    if (file.size > IMAGE_MAX_SIZE) {
-      toast.error('ไฟล์ต้องมีขนาดไม่เกิน 5MB');
       return;
     }
 

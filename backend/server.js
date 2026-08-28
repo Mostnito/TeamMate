@@ -174,7 +174,6 @@ const uploadChatImage = multer({
         destination: (req, file, cb) => cb(null, chatImageDir),
         filename: (req, file, cb) => cb(null, `chat_${req.user.userId}_${Date.now()}${AVATAR_MIME_TO_EXT[file.mimetype]}`)
     }),
-    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         if (!AVATAR_MIME_TO_EXT[file.mimetype]) {
             return cb(new Error('INVALID_FILE_TYPE'));
@@ -2490,7 +2489,6 @@ app.post('/api/group/:id/messages/image', authenticateToken, (req, res) => {
     uploadChatImage.single('image')(req, res, async (err) => {
         if (err) {
             if (err.message === 'INVALID_FILE_TYPE') return res.status(400).json({ error: 'รองรับเฉพาะไฟล์ JPG, PNG, WEBP เท่านั้น' });
-            if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 5MB' });
             console.error('Error uploading chat image:', err);
             return res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
         }
