@@ -111,9 +111,12 @@ CREATE TABLE messages (
     message_id SERIAL PRIMARY KEY,
     group_id   INTEGER NOT NULL REFERENCES groups(group_id) ON DELETE CASCADE,
     user_id    INTEGER NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
-    content    TEXT NOT NULL,
+    content    TEXT,
+    image_path VARCHAR(255),
     sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- a row is either a text message (content set, image_path null) or an image message
+-- (content null, image_path set) - never both, per the chat image-send feature
 
 
 CREATE TABLE points (

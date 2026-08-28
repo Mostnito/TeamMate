@@ -87,6 +87,7 @@ io.on('connection', (socket) => {
                 senderAvatarUrl: sender.avatar_path,
                 senderPublicId: sender.public_id,
                 content: msg.content,
+                imageUrl: null,
                 sentAt: msg.sent_at
             });
 
@@ -158,6 +159,22 @@ const uploadAchievementIcon = multer({
         filename: (req, file, cb) => cb(null, `achievement_${req.params.id}_${Date.now()}${AVATAR_MIME_TO_EXT[file.mimetype]}`)
     }),
     limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!AVATAR_MIME_TO_EXT[file.mimetype]) {
+            return cb(new Error('INVALID_FILE_TYPE'));
+        }
+        cb(null, true);
+    }
+});
+
+const chatImageDir = path.join(__dirname, 'uploads', 'chat');
+fs.mkdirSync(chatImageDir, { recursive: true });
+const uploadChatImage = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, chatImageDir),
+        filename: (req, file, cb) => cb(null, `chat_${req.user.userId}_${Date.now()}${AVATAR_MIME_TO_EXT[file.mimetype]}`)
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         if (!AVATAR_MIME_TO_EXT[file.mimetype]) {
             return cb(new Error('INVALID_FILE_TYPE'));
@@ -2441,7 +2458,7 @@ app.get('/api/group/:id/messages', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
         }
         const result = await pool.query(
-            `SELECT m.message_id, m.group_id, m.user_id, m.content, m.sent_at, u.firstname, u.lastname, u.avatar_path, u.public_id
+            `SELECT m.message_id, m.group_id, m.user_id, m.content, m.image_path, m.sent_at, u.firstname, u.lastname, u.avatar_path, u.public_id
              FROM messages m
              JOIN users u ON u.user_id = m.user_id
              WHERE m.group_id = $1
@@ -2457,12 +2474,61 @@ app.get('/api/group/:id/messages', authenticateToken, async (req, res) => {
             senderAvatarUrl: r.avatar_path,
             senderPublicId: r.public_id,
             content: r.content,
+            imageUrl: r.image_path,
             sentAt: r.sent_at
         })));
     } catch (err) {
         console.error('Error fetching group messages:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
+});
+
+app.post('/api/group/:id/messages/image', authenticateToken, (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+
+    uploadChatImage.single('image')(req, res, async (err) => {
+        if (err) {
+            if (err.message === 'INVALID_FILE_TYPE') return res.status(400).json({ error: 'รองรับเฉพาะไฟล์ JPG, PNG, WEBP เท่านั้น' });
+            if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 5MB' });
+            console.error('Error uploading chat image:', err);
+            return res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+        }
+        if (!req.file) return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
+
+        try {
+            if (!(await isGroupMember(req.user.userId, groupId))) {
+                fs.unlink(req.file.path, () => {});
+                return res.status(403).json({ error: 'คุณไม่ใช่สมาชิกของกลุ่มนี้' });
+            }
+            const imagePath = '/uploads/chat/' + req.file.filename;
+            const result = await pool.query(
+                `INSERT INTO messages (group_id, user_id, content, image_path) VALUES ($1, $2, NULL, $3)
+                 RETURNING message_id, group_id, user_id, image_path, sent_at`,
+                [groupId, req.user.userId, imagePath]
+            );
+            const userResult = await pool.query('SELECT firstname, lastname, avatar_path, public_id FROM users WHERE user_id = $1', [req.user.userId]);
+            const msg = result.rows[0];
+            const sender = userResult.rows[0];
+            const payload = {
+                messageId: msg.message_id,
+                groupId: msg.group_id,
+                senderId: msg.user_id,
+                senderName: `${sender.firstname} ${sender.lastname}`,
+                senderAvatarUrl: sender.avatar_path,
+                senderPublicId: sender.public_id,
+                content: null,
+                imageUrl: msg.image_path,
+                sentAt: msg.sent_at
+            };
+            io.to(`group_${groupId}`).emit('message_received', payload);
+            res.json(payload);
+        } catch (dbErr) {
+            fs.unlink(req.file.path, () => {});
+            console.error('Error saving chat image message:', dbErr);
+            res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+        }
+    });
 });
 
 app.get('/api/group/:id/message-reads', authenticateToken, async (req, res) => {

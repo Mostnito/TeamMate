@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
-import { IoMdArrowBack, IoMdSend, IoMdFlag } from 'react-icons/io';
+import { IoMdArrowBack, IoMdSend, IoMdFlag, IoMdImage, IoMdDownload } from 'react-icons/io';
 import ReportModal from '../components/ReportModal.jsx';
+
+const IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const IMAGE_MAX_SIZE = 5 * 1024 * 1024;
 
 export default function TeamChatScreen({ v }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -13,8 +16,10 @@ export default function TeamChatScreen({ v }) {
   const [chatInput, setChatInput] = useState('');
   const [reportTarget, setReportTarget] = useState(null);
   const [isReporting, setIsReporting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   useEffect(() => {
     if (v.teamId == null) { setIsLoading(false); return; }
@@ -108,6 +113,33 @@ export default function TeamChatScreen({ v }) {
 
   const handleKeyDown = (e) => { if (e.key === 'Enter') handleSend(); };
 
+  const handleImageSelect = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!IMAGE_ALLOWED_TYPES.includes(file.type)) {
+      toast.error('รองรับเฉพาะไฟล์ JPG, PNG, WEBP เท่านั้น');
+      return;
+    }
+    if (file.size > IMAGE_MAX_SIZE) {
+      toast.error('ไฟล์ต้องมีขนาดไม่เกิน 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+    const token = localStorage.getItem('token');
+
+    setIsUploadingImage(true);
+    try {
+      await axios.post(`/api/group/${v.teamId}/messages/image`, formData, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const handleSubmitReport = (detail) => {
     const token = localStorage.getItem('token');
     setIsReporting(true);
@@ -157,7 +189,30 @@ export default function TeamChatScreen({ v }) {
                     {!msg.senderAvatarUrl && msg.senderName.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <div style={{ background: mine ? '#2563EB' : '#F3F4F6', color: mine ? '#fff' : '#111827', padding: '10px 14px', borderRadius: 12, fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
+                {msg.imageUrl ? (
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <img
+                      src={msg.imageUrl}
+                      onClick={() => window.open(msg.imageUrl, '_blank')}
+                      style={{ maxWidth: 220, maxHeight: 220, borderRadius: 12, cursor: 'pointer', display: 'block', objectFit: 'cover' }}
+                      alt="รูปภาพในแชท"
+                    />
+                    <a
+                      href={msg.imageUrl}
+                      download
+                      onClick={(e) => e.stopPropagation()}
+                      title="ดาวน์โหลดรูปภาพ"
+                      style={{
+                        position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: '50%',
+                        background: 'rgba(17,24,39,0.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}
+                    >
+                      <IoMdDownload size={13} />
+                    </a>
+                  </div>
+                ) : (
+                  <div style={{ background: mine ? '#2563EB' : '#F3F4F6', color: mine ? '#fff' : '#111827', padding: '10px 14px', borderRadius: 12, fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
+                )}
               </div>
               <div style={{ fontSize: 10, color: '#AEB9C6', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>{msg.senderName} · {new Date(msg.sentAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -189,6 +244,14 @@ export default function TeamChatScreen({ v }) {
         <div ref={messagesEndRef} />
       </div>
       <div style={{ padding: '14px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 10, background: '#fff' }}>
+        <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageSelect} style={{ display: 'none' }} />
+        <span
+          onClick={() => !isUploadingImage && imageInputRef.current?.click()}
+          title="ส่งรูปภาพ"
+          style={{ width: 36, height: 36, borderRadius: '50%', background: '#F3F4F6', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isUploadingImage ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: isUploadingImage ? 0.6 : 1 }}
+        >
+          <IoMdImage size={17} />
+        </span>
         <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="พิมพ์ข้อความ..." style={{ flex: 1, border: '1px solid #E5E7EB', borderRadius: 20, padding: '10px 16px', fontSize: 13, background: '#F9FAFB' }} />
         <button onClick={handleSend} style={{ width: 36, height: 36, borderRadius: '50%', background: '#2563EB', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IoMdSend size={16} /></button>
       </div>
