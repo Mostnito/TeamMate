@@ -13,6 +13,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { Server } = require("socket.io");
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -81,6 +82,13 @@ io.on('connection', (socket) => {
 });
 
 require("dotenv").config();
+
+// Google always displays App Passwords with spaces (e.g. "abcd efgh ijkl mnop") - strip them here
+// so auth still works even if the value in .env was pasted exactly as shown
+const mailTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '') }
+});
 
 const pool = new Pool({
     user: process.env.DB_USER,
@@ -274,6 +282,99 @@ app.post('/api/login', async (req, res) => {
         res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, title: user.title, publicId: user.public_id, message: 'เข้าสู่ระบบสำเร็จ' });
     } catch (err) {
         console.error('Error during login:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Request a password reset code by email - always responds with the same generic message
+//regardless of whether the email exists, so this endpoint can't be used to enumerate accounts
+app.post('/api/forgot-password', async (req, res) => {
+    const { email } = req.body;
+    const genericResponse = { message: 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งรหัสยืนยันไปให้แล้ว' };
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+        return res.status(400).json({ error: 'กรุณากรอกอีเมลให้ถูกต้อง' });
+    }
+    try {
+        const userResult = await pool.query('SELECT user_id, firstname FROM users WHERE email = $1', [email]);
+        if (userResult.rows.length === 0) {
+            return res.json(genericResponse);
+        }
+        const user = userResult.rows[0];
+
+        // basic cooldown: block requesting another code within 60s of the last one for this user
+        const recentResult = await pool.query(
+            `SELECT 1 FROM password_reset_codes WHERE user_id = $1 AND created_at > now() - interval '60 seconds'`,
+            [user.user_id]
+        );
+        if (recentResult.rows.length > 0) {
+            return res.json(genericResponse);
+        }
+
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const codeHash = await bcrypt.hash(code, 10);
+        await pool.query(
+            `INSERT INTO password_reset_codes (user_id, code_hash, expires_at) VALUES ($1, $2, now() + interval '15 minutes')`,
+            [user.user_id, codeHash]
+        );
+
+        await mailTransporter.sendMail({
+            from: process.env.GMAIL_USER,
+            to: email,
+            subject: '[TeamMate] รีเซ็ตรหัสผ่านของคุณ',
+            text: `สวัสดีคุณ ${user.firstname},\n\nรหัสยืนยันสำหรับรีเซ็ตรหัสผ่านของคุณคือ: ${code}\n\nรหัสนี้จะหมดอายุใน 15 นาที หากคุณไม่ได้ร้องขอการรีเซ็ตรหัสผ่าน กรุณาติดต่อผู้ดูแลระบบของ TeamMate\n\nขอบคุณ,\nทีมงาน TeamMate`
+        });
+
+        res.json(genericResponse);
+    } catch (err) {
+        console.error('Error sending password reset code:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Reset password using the emailed code
+app.post('/api/reset-password', async (req, res) => {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+        return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    }
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+    }
+    try {
+        const userResult = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
+        if (userResult.rows.length === 0) {
+            return res.status(400).json({ error: 'รหัสยืนยันไม่ถูกต้องหรือหมดอายุ' });
+        }
+        const userId = userResult.rows[0].user_id;
+
+        const codeResult = await pool.query(
+            `SELECT reset_code_id, code_hash, attempts FROM password_reset_codes
+             WHERE user_id = $1 AND used_at IS NULL AND expires_at > now()
+             ORDER BY created_at DESC LIMIT 1`,
+            [userId]
+        );
+        if (codeResult.rows.length === 0) {
+            return res.status(400).json({ error: 'รหัสยืนยันไม่ถูกต้องหรือหมดอายุ' });
+        }
+        const resetRow = codeResult.rows[0];
+        if (resetRow.attempts >= 5) {
+            return res.status(400).json({ error: 'กรอกรหัสผิดหลายครั้งเกินไป กรุณาขอรหัสใหม่' });
+        }
+
+        const isCodeValid = await bcrypt.compare(code, resetRow.code_hash);
+        if (!isCodeValid) {
+            await pool.query('UPDATE password_reset_codes SET attempts = attempts + 1 WHERE reset_code_id = $1', [resetRow.reset_code_id]);
+            return res.status(400).json({ error: 'รหัสยืนยันไม่ถูกต้องหรือหมดอายุ' });
+        }
+
+        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+        await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [newPasswordHash, userId]);
+        await pool.query('UPDATE password_reset_codes SET used_at = now() WHERE reset_code_id = $1', [resetRow.reset_code_id]);
+
+        logActivity(userId, 'reset_password', 'user', userId, req);
+        res.json({ message: 'เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่' });
+    } catch (err) {
+        console.error('Error resetting password:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });

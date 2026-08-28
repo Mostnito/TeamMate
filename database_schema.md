@@ -303,5 +303,16 @@ CREATE INDEX idx_activity_logs_target ON activity_logs(target_type, target_id);
 CREATE INDEX idx_user_achievements_user_id ON user_achievements(user_id);
 CREATE INDEX idx_user_achievements_achievement_id ON user_achievements(achievement_id);
 CREATE INDEX idx_achievements_metric ON achievements(metric);
- 
+
+CREATE TABLE password_reset_codes (
+    reset_code_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_password_reset_codes_user_id ON password_reset_codes(user_id);
+
 COMMIT;

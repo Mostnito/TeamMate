@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import logo from '../assets/teammate-logo.png';
 import { label, input, btnPrimary } from '../styles/common.js';
+import ForgotPasswordModal from '../components/ForgotPasswordModal.jsx';
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
@@ -12,6 +13,7 @@ const inputLg = { ...input, fontSize: 15.5, padding: '13px 16px', borderRadius: 
 
 export default function LoginScreen({ v }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
 
   const onKeyDownSubmit = (e) => {
     if (e.key === 'Enter' && !isSubmitting) handleSubmit();
@@ -59,6 +61,7 @@ export default function LoginScreen({ v }) {
 
   return (
     <div className="login-panes" style={{ minHeight: '100%' }}>
+      <ForgotPasswordModal isOpen={isForgotPasswordOpen} onClose={() => setIsForgotPasswordOpen(false)} />
       <div style={{ flex: 1, background: 'linear-gradient(160deg,#2563EB,#1D4ED8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, color: '#fff' }}>
         <img src={logo} style={{ width: 115, height: 115, objectFit: 'contain', background: '#fff', borderRadius: 24, padding: 17, marginBottom: 26 }} alt="TeamMate logo" />
         <div style={{ fontSize: 31, fontWeight: 700, letterSpacing: 0.6 }}>TeamMate</div>
@@ -80,7 +83,7 @@ export default function LoginScreen({ v }) {
             </div>
           </div>
           <div style={{ textAlign: 'right', marginBottom: 22 }}>
-            <span style={{ fontSize: 14, color: '#2563EB', cursor: 'pointer' }}>ลืมรหัสผ่าน?</span>
+            <span onClick={() => setIsForgotPasswordOpen(true)} style={{ fontSize: 14, color: '#2563EB', cursor: 'pointer' }}>ลืมรหัสผ่าน</span>
           </div>
           <button onClick={handleSubmit} disabled={isSubmitting} style={{ ...btnPrimary, width: '100%', padding: 14, borderRadius: 12, fontSize: 17, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
             {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
