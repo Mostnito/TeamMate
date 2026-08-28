@@ -24,6 +24,7 @@ export default function SettingsScreen({ v }) {
   const [skillOtherError, setSkillOtherError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentTitle, setCurrentTitle] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -46,6 +47,7 @@ export default function SettingsScreen({ v }) {
       };
       setForm(loaded);
       setOriginalForm(loaded);
+      setCurrentTitle(u.title || '');
     }).catch((err) => {
       if (axios.isCancel(err)) return;
       toast.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
@@ -144,7 +146,17 @@ export default function SettingsScreen({ v }) {
             imageUrl={v.currentUserAvatarUrl}
             onUploaded={(url) => v.updateCurrentUser({ avatarUrl: url })}
           />
-          <div style={{ fontSize: 11.5, color: '#6B7280' }}>คลิกหรือลากรูปมาวงเพื่อเปลี่ยนรูปโปรไฟล์<br />แนะนำขนาด 200×200px</div>
+          <div style={{ fontSize: 11.5, color: '#6B7280' }}>
+            คลิกหรือลากรูปมาวงเพื่อเปลี่ยนรูปโปรไฟล์<br />แนะนำขนาด 200×200px
+            <div style={{ marginTop: 8 }}>
+              ฉายาปัจจุบัน:{' '}
+              {currentTitle ? (
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706', background: '#FEF3C7', padding: '3px 9px', borderRadius: 10 }}>{currentTitle}</span>
+              ) : (
+                <span style={{ color: '#9CA3AF' }}>ยังไม่มี (เลือกได้ที่ร้านค้า)</span>
+              )}
+            </div>
+          </div>
         </div>
         <div className="grid-2" style={{ gap: 12, marginBottom: 12 }}>
           <div>

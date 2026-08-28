@@ -50,7 +50,7 @@ const initialState = {
   taskForm: { title: '', description: '', assigneeIdx: 0, dueDate: '' },
   calendarEvents: initialCalendarEvents,
   adminUsersList: initialAdminUsersList,
-  currentUser: { name: '', firstName: '', studentId: '', userId: null, avatarUrl: '' },
+  currentUser: { name: '', firstName: '', studentId: '', userId: null, avatarUrl: '', title: '' },
   moderationQueue: initialModerationQueue,
   groupsData: initialGroupsData,
   myTeamCount: 0

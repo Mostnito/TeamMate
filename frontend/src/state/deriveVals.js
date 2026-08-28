@@ -1,5 +1,5 @@
 import { evalCriteriaList, leaderboardData, errorLogsData, securityAlertsData, recentFiles, statusMeta, boardColumnDefs } from '../data/seedData.js';
-import { IoMdFlag, IoMdHome, IoMdPeople, IoMdGrid, IoMdCheckbox, IoMdCalendar, IoMdStar, IoMdTime, IoMdChatbubbles, IoMdRibbon, IoMdDocument } from 'react-icons/io';
+import { IoMdFlag, IoMdHome, IoMdPeople, IoMdGrid, IoMdCheckbox, IoMdCalendar, IoMdStar, IoMdTime, IoMdChatbubbles, IoMdRibbon, IoMdDocument, IoMdCart, IoMdPricetag } from 'react-icons/io';
 
 const monthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const weekdayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
@@ -54,7 +54,8 @@ export default function deriveVals(state, actions) {
     { key: 'adminUsers', label: 'สมาชิก', icon: IoMdPeople },
     { key: 'adminGroups', label: 'กลุ่ม', icon: IoMdGrid },
     { key: 'adminAchievements', label: 'จัดการความสำเร็จ', icon: IoMdRibbon },
-    { key: 'adminTerms', label: 'ข้อกำหนดการใช้งาน', icon: IoMdDocument }
+    { key: 'adminTerms', label: 'ข้อกำหนดการใช้งาน', icon: IoMdDocument },
+    { key: 'adminShop', label: 'จัดการร้านค้า', icon: IoMdPricetag }
   ] : [
     { key: 'dashboard', label: 'แดชบอร์ด', icon: IoMdHome },
     { key: 'teams', label: 'ทีม', icon: IoMdPeople },
@@ -62,9 +63,10 @@ export default function deriveVals(state, actions) {
     { key: 'assignment', label: 'งานที่มอบหมาย', icon: IoMdCheckbox },
     { key: 'calendar', label: 'ปฏิทิน', icon: IoMdCalendar },
     { key: 'leaderboard', label: 'อันดับคะแนน', icon: IoMdStar },
-    { key: 'achievements', label: 'ความสำเร็จ', icon: IoMdRibbon }
+    { key: 'achievements', label: 'ความสำเร็จ', icon: IoMdRibbon },
+    { key: 'shop', label: 'ร้านค้า', icon: IoMdCart }
   ];
-  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', adminAchievements: 'adminAchievements', adminTerms: 'adminTerms', leaderboard: 'leaderboard', achievements: 'achievements', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
+  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', adminAchievements: 'adminAchievements', adminTerms: 'adminTerms', adminShop: 'adminShop', leaderboard: 'leaderboard', achievements: 'achievements', shop: 'shop', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
 
   const leaderboardPeriodDefs = [
     { key: 'all', label: 'ทั้งหมด' }, { key: 'monthly', label: 'รายเดือน' }, { key: 'weekly', label: 'รายสัปดาห์' }, { key: 'daily', label: 'รายวัน' }
@@ -217,7 +219,7 @@ export default function deriveVals(state, actions) {
   const hasTeam = s.myTeamCount > 0;
 
   return {
-    showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel, currentUserId: s.currentUser.userId, currentUserAvatarUrl: s.currentUser.avatarUrl,
+    showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel, currentUserId: s.currentUser.userId, currentUserAvatarUrl: s.currentUser.avatarUrl, currentUserTitle: s.currentUser.title,
     goSettings: actions.goSettings, settingsIconColor: settingsActive ? '#2563EB' : '#6B7280', settingsTextColor: settingsActive ? '#2563EB' : '#374151', handleLogout: actions.handleLogout,
     isLogin, loginEmail: s.loginEmail, loginPassword: s.loginPassword,
     loginPwType: s.loginShowPw ? 'text' : 'password', loginPwIcon: s.loginShowPw ? 'ซ่อน' : 'แสดง',
@@ -286,6 +288,8 @@ export default function deriveVals(state, actions) {
     isAchievements: s.screen === 'achievements',
     isAdminAchievements: s.screen === 'adminAchievements',
     isAdminTerms: s.screen === 'adminTerms',
+    isShop: s.screen === 'shop',
+    isAdminShop: s.screen === 'adminShop',
     isAdminSettings: s.screen === 'adminSettings',
     hasModerationItems: moderationItems.length > 0, noModerationItems: moderationItems.length === 0, moderationItems,
     errorLogs: errorLogsData, securityAlerts: securityAlertsData,

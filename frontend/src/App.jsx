@@ -41,6 +41,8 @@ import AdminModerationScreen from './screens/AdminModerationScreen.jsx';
 import AchievementsScreen from './screens/AchievementsScreen.jsx';
 import AdminAchievementsScreen from './screens/AdminAchievementsScreen.jsx';
 import AdminTermsScreen from './screens/AdminTermsScreen.jsx';
+import ShopScreen from './screens/ShopScreen.jsx';
+import AdminShopScreen from './screens/AdminShopScreen.jsx';
 import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 
 export default function App() {
@@ -59,7 +61,7 @@ export default function App() {
     axios.get('/api/check', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
       .then((res) => {
         const isAdminMode = res.data.role === 'admin';
-        const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId, avatarUrl: res.data.avatarUrl || '' };
+        const currentUser = { name: res.data.nickname, firstName: res.data.nickname, studentId: res.data.studentId || '', userId: res.data.userId, avatarUrl: res.data.avatarUrl || '', title: res.data.title || '' };
         actions.completeLogin(currentUser, isAdminMode);
         return axios.get('/api/group/data', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
       })
@@ -123,6 +125,8 @@ export default function App() {
             {v.isAchievements && <AchievementsScreen v={v} />}
             {v.isAdminAchievements && <AdminAchievementsScreen />}
             {v.isAdminTerms && <AdminTermsScreen />}
+            {v.isShop && <ShopScreen />}
+            {v.isAdminShop && <AdminShopScreen />}
             {v.isAdminSettings && <AdminSettingsScreen v={v} />}
           </div>
         </div>

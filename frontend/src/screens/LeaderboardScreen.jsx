@@ -83,7 +83,10 @@ export default function LeaderboardScreen() {
                       {row.rank === 1 && <span style={{ position: 'absolute', top: -8, right: -6, color: '#D97706' }}><IoMdTrophy size={16} /></span>}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{row.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{row.name}</span>
+                        {row.title && <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', background: '#FEF3C7', padding: '2px 7px', borderRadius: 8, whiteSpace: 'nowrap' }}>{row.title}</span>}
+                      </div>
                       <div style={{ fontSize: 11, color: '#9CA3AF' }}>{row.studentId}</div>
                     </div>
                   </div>
@@ -111,7 +114,10 @@ export default function LeaderboardScreen() {
                       background: row.avatarUrl ? `${row.tint} url(${row.avatarUrl}) center/cover no-repeat` : row.tint
                     }}>{!row.avatarUrl && row.initials}</div>
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{row.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{row.name}</span>
+                        {row.title && <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', background: '#FEF3C7', padding: '2px 7px', borderRadius: 8, whiteSpace: 'nowrap' }}>{row.title}</span>}
+                      </div>
                       <div style={{ fontSize: 10.5, color: '#9CA3AF' }}>{row.studentId}</div>
                     </div>
                   </div>

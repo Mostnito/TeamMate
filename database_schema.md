@@ -223,6 +223,25 @@ CREATE TABLE user_achievements (
     UNIQUE (user_id, achievement_id)
 );
 
+CREATE TABLE shop_items (
+    item_id SERIAL PRIMARY KEY,
+    type VARCHAR(20) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    cost INTEGER NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE user_purchases (
+    purchase_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES shop_items(item_id) ON DELETE CASCADE,
+    purchased_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, item_id)
+);
+
+ALTER TABLE users ADD COLUMN equipped_title_id INTEGER REFERENCES shop_items(item_id) ON DELETE SET NULL;
+
 INSERT INTO gender (gender_type) VALUES
 ('ชาย'),
 ('หญิง'),

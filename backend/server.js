@@ -249,7 +249,10 @@ app.post('/api/login', async (req, res) => {
     }
 
     try {
-        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const userResult = await pool.query(
+            `SELECT u.*, s.name AS title FROM users u LEFT JOIN shop_items s ON s.item_id = u.equipped_title_id WHERE u.email = $1`,
+            [email]
+        );
         if (userResult.rows.length === 0) {
             return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
         }
@@ -265,7 +268,7 @@ app.post('/api/login', async (req, res) => {
 
         const token = jwt.sign({ userId: user.user_id }, process.env.TOKEN_SECRET, { expiresIn: '1h' });
         logActivity(user.user_id, 'login', null, null, req);
-        res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, message: 'เข้าสู่ระบบสำเร็จ' });
+        res.json({ token, userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, title: user.title, message: 'เข้าสู่ระบบสำเร็จ' });
     } catch (err) {
         console.error('Error during login:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
@@ -274,7 +277,11 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/check', authenticateToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT user_id, nickname, student_id, system_role, avatar_path, is_active FROM users WHERE user_id = $1', [req.user.userId]);
+        const result = await pool.query(
+            `SELECT u.user_id, u.nickname, u.student_id, u.system_role, u.avatar_path, u.is_active, s.name AS title
+             FROM users u LEFT JOIN shop_items s ON s.item_id = u.equipped_title_id WHERE u.user_id = $1`,
+            [req.user.userId]
+        );
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
         }
@@ -282,7 +289,7 @@ app.get('/api/check', authenticateToken, async (req, res) => {
         if (!user.is_active) {
             return res.status(403).json({ error: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
         }
-        res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path });
+        res.json({ userId: user.user_id, nickname: user.nickname, studentId: user.student_id, role: user.system_role, avatarUrl: user.avatar_path, title: user.title });
     } catch (err) {
         console.error('Error fetching current user:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
@@ -297,7 +304,8 @@ app.get('/api/user/:id', authenticateToken, async (req, res) => {
     }
     try {
         const userResult = await pool.query(
-            'SELECT user_id, firstname, lastname, nickname, student_id, gender_id, birth_date, email, phone, avatar_path FROM users WHERE user_id = $1',
+            `SELECT u.user_id, u.firstname, u.lastname, u.nickname, u.student_id, u.gender_id, u.birth_date, u.email, u.phone, u.avatar_path, si.name AS title
+             FROM users u LEFT JOIN shop_items si ON si.item_id = u.equipped_title_id WHERE u.user_id = $1`,
             [userId]
         );
         if (userResult.rows.length === 0) {
@@ -319,6 +327,7 @@ app.get('/api/user/:id', authenticateToken, async (req, res) => {
             email: user.email,
             phone: user.phone,
             avatarUrl: user.avatar_path,
+            title: user.title,
             skills: skillsResult.rows.map((r) => r.skill_name)
         });
     } catch (err) {
@@ -893,7 +902,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
         }
         const result = await pool.query(
             `SELECT u.user_id, u.firstname, u.lastname, u.nickname, u.student_id, u.email, u.system_role, u.is_active, u.avatar_path, u.created_at,
-                    COALESCE(SUM(p.points_earned), 0)::int AS points
+                    COALESCE(SUM(p.points_earned) FILTER (WHERE p.points_earned > 0), 0)::int AS points
              FROM users u
              LEFT JOIN points p ON p.user_id = u.user_id
              GROUP BY u.user_id
@@ -1252,6 +1261,254 @@ app.post('/api/admin/achievements/:id/icon', authenticateToken, async (req, res)
     });
 });
 
+const SHOP_ITEM_TYPES = ['title'];
+
+//Get all shop items including inactive ones, with a purchase count per item (admin only)
+app.get('/api/admin/shop-items', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const result = await pool.query(
+            `SELECT si.item_id, si.type, si.name, si.description, si.cost, si.is_active,
+                    COUNT(up.purchase_id)::int AS purchase_count
+             FROM shop_items si
+             LEFT JOIN user_purchases up ON up.item_id = si.item_id
+             GROUP BY si.item_id
+             ORDER BY si.item_id ASC`
+        );
+        res.json(result.rows.map((i) => ({
+            itemId: i.item_id,
+            type: i.type,
+            name: i.name,
+            description: i.description,
+            cost: i.cost,
+            isActive: i.is_active,
+            purchaseCount: i.purchase_count
+        })));
+    } catch (err) {
+        console.error('Error fetching admin shop item list:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+function validateShopItemFields(body, { partial }) {
+    const fields = {};
+    if (body.name !== undefined) {
+        const name = (body.name || '').trim();
+        if (!name) return { error: 'กรุณากรอกชื่อไอเทม' };
+        fields.name = name;
+    } else if (!partial) {
+        return { error: 'กรุณากรอกชื่อไอเทม' };
+    }
+
+    if (body.description !== undefined) {
+        fields.description = (body.description || '').trim() || null;
+    }
+
+    if (body.type !== undefined) {
+        if (!SHOP_ITEM_TYPES.includes(body.type)) return { error: 'ชนิดไอเทมไม่ถูกต้อง' };
+        fields.type = body.type;
+    } else if (!partial) {
+        return { error: 'กรุณาเลือกชนิดไอเทม' };
+    }
+
+    if (body.cost !== undefined) {
+        const cost = parseInt(body.cost, 10);
+        if (!Number.isInteger(cost) || cost < 1) return { error: 'ราคาต้องเป็นจำนวนเต็มบวก' };
+        fields.cost = cost;
+    } else if (!partial) {
+        return { error: 'กรุณากรอกราคา' };
+    }
+
+    return { fields };
+}
+
+//Create a new shop item (admin only)
+app.post('/api/admin/shop-items', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const { error, fields } = validateShopItemFields(req.body, { partial: false });
+        if (error) {
+            return res.status(400).json({ error });
+        }
+        const result = await pool.query(
+            `INSERT INTO shop_items (type, name, description, cost)
+             VALUES ($1, $2, $3, $4)
+             RETURNING item_id, type, name, description, cost, is_active`,
+            [fields.type, fields.name, fields.description || null, fields.cost]
+        );
+        const i = result.rows[0];
+        logActivity(req.user.userId, 'create_shop_item', 'shop_item', i.item_id, req);
+        res.status(201).json({
+            itemId: i.item_id, type: i.type, name: i.name, description: i.description,
+            cost: i.cost, isActive: i.is_active, purchaseCount: 0
+        });
+    } catch (err) {
+        console.error('Error creating shop item:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Update a shop item's fields and/or active status (admin only)
+app.put('/api/admin/shop-items/:id', authenticateToken, async (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(itemId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+        const { error, fields } = validateShopItemFields(req.body, { partial: true });
+        if (error) {
+            return res.status(400).json({ error });
+        }
+        const isActiveProvided = req.body.isActive !== undefined;
+        if (isActiveProvided) fields.isActive = !!req.body.isActive;
+
+        const columnMap = { name: 'name', description: 'description', type: 'type', cost: 'cost', isActive: 'is_active' };
+        const setClauses = [];
+        const values = [];
+        for (const [key, column] of Object.entries(columnMap)) {
+            if (fields[key] !== undefined) {
+                values.push(fields[key]);
+                setClauses.push(`${column} = $${values.length}`);
+            }
+        }
+        if (setClauses.length === 0) {
+            return res.status(400).json({ error: 'ไม่มีข้อมูลให้อัปเดต' });
+        }
+        values.push(itemId);
+
+        const result = await pool.query(
+            `UPDATE shop_items SET ${setClauses.join(', ')} WHERE item_id = $${values.length}
+             RETURNING item_id, type, name, description, cost, is_active`,
+            values
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบไอเทมนี้' });
+        }
+        const i = result.rows[0];
+        const onlyToggled = isActiveProvided && Object.keys(fields).length === 1;
+        logActivity(req.user.userId, onlyToggled ? 'toggle_shop_item' : 'update_shop_item', 'shop_item', itemId, req);
+        res.json({
+            itemId: i.item_id, type: i.type, name: i.name, description: i.description,
+            cost: i.cost, isActive: i.is_active
+        });
+    } catch (err) {
+        console.error('Error updating shop item:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Get shop items for the current user, with ownership/equipped status and their spendable balance
+app.get('/api/shop/items', authenticateToken, async (req, res) => {
+    try {
+        const [itemsResult, ownedResult, balanceResult, userResult] = await Promise.all([
+            pool.query('SELECT item_id, type, name, description, cost, is_active FROM shop_items ORDER BY cost ASC'),
+            pool.query('SELECT item_id FROM user_purchases WHERE user_id = $1', [req.user.userId]),
+            pool.query('SELECT COALESCE(SUM(points_earned), 0)::int AS balance FROM points WHERE user_id = $1', [req.user.userId]),
+            pool.query('SELECT equipped_title_id FROM users WHERE user_id = $1', [req.user.userId])
+        ]);
+        const ownedIds = new Set(ownedResult.rows.map((r) => r.item_id));
+        const equippedTitleId = userResult.rows[0]?.equipped_title_id || null;
+        const items = itemsResult.rows
+            .filter((i) => i.is_active || ownedIds.has(i.item_id))
+            .map((i) => ({
+                itemId: i.item_id,
+                type: i.type,
+                name: i.name,
+                description: i.description,
+                cost: i.cost,
+                isActive: i.is_active,
+                isOwned: ownedIds.has(i.item_id),
+                isEquipped: i.item_id === equippedTitleId
+            }));
+        res.json({ balance: balanceResult.rows[0].balance, items });
+    } catch (err) {
+        console.error('Error fetching shop items:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Purchase a shop item with points (transactional - row-locks the item to avoid a double-spend race)
+app.post('/api/shop/items/:id/purchase', authenticateToken, async (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(itemId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const itemResult = await client.query('SELECT * FROM shop_items WHERE item_id = $1 AND is_active = true FOR UPDATE', [itemId]);
+        if (itemResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'ไม่พบไอเทมนี้ หรือถูกปิดใช้งานแล้ว' });
+        }
+        const item = itemResult.rows[0];
+
+        const ownedCheck = await client.query('SELECT 1 FROM user_purchases WHERE user_id = $1 AND item_id = $2', [req.user.userId, itemId]);
+        if (ownedCheck.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'คุณมีไอเทมนี้อยู่แล้ว' });
+        }
+
+        const balanceResult = await client.query('SELECT COALESCE(SUM(points_earned), 0)::int AS balance FROM points WHERE user_id = $1', [req.user.userId]);
+        if (balanceResult.rows[0].balance < item.cost) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'แต้มไม่เพียงพอ' });
+        }
+
+        await client.query('INSERT INTO user_purchases (user_id, item_id) VALUES ($1, $2)', [req.user.userId, itemId]);
+        await client.query(
+            'INSERT INTO points (user_id, points_earned, reason) VALUES ($1, $2, $3)',
+            [req.user.userId, -item.cost, `ซื้อไอเทมร้านค้า: ${item.name}`]
+        );
+
+        await client.query('COMMIT');
+        logActivity(req.user.userId, 'purchase_shop_item', 'shop_item', itemId, req);
+        res.status(201).json({ message: `ซื้อ "${item.name}" สำเร็จ` });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error purchasing shop item:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    } finally {
+        client.release();
+    }
+});
+
+//Equip or unequip an owned title (itemId: null clears it)
+app.put('/api/shop/equipped', authenticateToken, async (req, res) => {
+    const itemId = req.body.itemId === null || req.body.itemId === undefined ? null : parseInt(req.body.itemId, 10);
+    if (itemId !== null && !Number.isInteger(itemId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        if (itemId !== null) {
+            const itemResult = await pool.query('SELECT type FROM shop_items WHERE item_id = $1', [itemId]);
+            if (itemResult.rows.length === 0) {
+                return res.status(404).json({ error: 'ไม่พบไอเทมนี้' });
+            }
+            if (itemResult.rows[0].type !== 'title') {
+                return res.status(400).json({ error: 'ไอเทมนี้ไม่สามารถสวมใส่ได้' });
+            }
+            const ownedCheck = await pool.query('SELECT 1 FROM user_purchases WHERE user_id = $1 AND item_id = $2', [req.user.userId, itemId]);
+            if (ownedCheck.rows.length === 0) {
+                return res.status(403).json({ error: 'คุณยังไม่ได้ซื้อไอเทมนี้' });
+            }
+        }
+        await pool.query('UPDATE users SET equipped_title_id = $1 WHERE user_id = $2', [itemId, req.user.userId]);
+        res.json({ message: itemId ? 'สวมใส่ฉายาสำเร็จ' : 'ถอดฉายาสำเร็จ' });
+    } catch (err) {
+        console.error('Error equipping shop item:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Get the activity/audit log, paginated (admin only)
 app.get('/api/admin/activity-logs', authenticateToken, async (req, res) => {
     try {
@@ -1369,7 +1626,7 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
 app.get('/api/user/me/points', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT COALESCE(SUM(points_earned), 0)::int AS total_points FROM points WHERE user_id = $1',
+            'SELECT COALESCE(SUM(points_earned), 0)::int AS total_points FROM points WHERE user_id = $1 AND points_earned > 0',
             [req.user.userId]
         );
         res.json({ points: result.rows[0].total_points });
@@ -1401,12 +1658,13 @@ app.get('/api/leaderboard', authenticateToken, async (req, res) => {
     try {
         const since = leaderboardSince(req.query.period);
         const result = await pool.query(
-            `SELECT u.user_id, u.firstname, u.lastname, u.student_id, u.avatar_path,
-                    COALESCE(SUM(p.points_earned), 0)::int AS total_points
+            `SELECT u.user_id, u.firstname, u.lastname, u.student_id, u.avatar_path, s.name AS title,
+                    COALESCE(SUM(p.points_earned) FILTER (WHERE p.points_earned > 0), 0)::int AS total_points
              FROM users u
              LEFT JOIN points p ON p.user_id = u.user_id AND ($1::timestamptz IS NULL OR p.created_at >= $1)
+             LEFT JOIN shop_items s ON s.item_id = u.equipped_title_id
              WHERE u.system_role = 'student'
-             GROUP BY u.user_id
+             GROUP BY u.user_id, s.name
              ORDER BY total_points DESC, u.firstname ASC`,
             [since]
         );
@@ -1416,6 +1674,7 @@ app.get('/api/leaderboard', authenticateToken, async (req, res) => {
             lastName: r.lastname,
             studentId: r.student_id,
             avatarUrl: r.avatar_path,
+            title: r.title,
             points: r.total_points
         })));
     } catch (err) {

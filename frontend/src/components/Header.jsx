@@ -22,7 +22,12 @@ export default function Header({ v, onToggleDrawer }) {
             <span style={{ position: 'absolute', bottom: -2, right: -2, width: 9, height: 9, borderRadius: '50%', background: '#22C55E', border: '2px solid #fff' }}></span>
           </div>
           <div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{v.currentUserName}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{v.currentUserName}</span>
+              {v.currentUserTitle && (
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#D97706', background: '#FEF3C7', padding: '2px 8px', borderRadius: 10, whiteSpace: 'nowrap' }}>{v.currentUserTitle}</span>
+              )}
+            </div>
             <div style={{ fontSize: 10.5, color: '#6B7280' }}>{v.currentUserRoleLabel}</div>
           </div>
         </div>
