@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
@@ -6,6 +6,18 @@ import { IoMdArrowBack, IoMdSend, IoMdFlag, IoMdImage, IoMdDownload } from 'reac
 import ReportModal from '../components/ReportModal.jsx';
 
 const IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+function formatDateLabel(dateStr) {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (isSameDay(date, today)) return 'วันนี้';
+  if (isSameDay(date, yesterday)) return 'เมื่อวาน';
+  return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 export default function TeamChatScreen({ v }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -166,11 +178,21 @@ export default function TeamChatScreen({ v }) {
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {messages.length === 0 && <div style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>ยังไม่มีข้อความ เริ่มการสนทนาได้เลย</div>}
-        {messages.map((msg) => {
+        {messages.map((msg, idx) => {
           const mine = msg.senderId === v.currentUserId;
           const readers = readMarkersByMessageId[msg.messageId];
+          const prevMsg = messages[idx - 1];
+          const showDateDivider = !prevMsg || !isSameDay(new Date(msg.sentAt), new Date(prevMsg.sentAt));
           return (
-            <div key={msg.messageId} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+            <Fragment key={msg.messageId}>
+              {showDateDivider && (
+                <div style={{ textAlign: 'center', margin: '4px 0' }}>
+                  <span style={{ fontSize: 11, color: '#6B7280', background: '#F3F4F6', padding: '4px 14px', borderRadius: 12 }}>
+                    {formatDateLabel(msg.sentAt)}
+                  </span>
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '60%' }}>
                 {!mine && (
                   <div
@@ -234,6 +256,7 @@ export default function TeamChatScreen({ v }) {
                 </div>
               )}
             </div>
+            </Fragment>
           );
         })}
         <div ref={messagesEndRef} />
