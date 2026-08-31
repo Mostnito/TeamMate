@@ -269,7 +269,7 @@ export default function TaskDetailScreen({ v }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6B7280', fontSize: 12, marginBottom: 6, cursor: 'pointer' }} onClick={v.goTeamTasks}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6B7280', fontSize: 12, marginBottom: 6, cursor: 'pointer' }} onClick={v.goBack}>
         <IoMdArrowBack size={14} /><span>งานที่ได้รับมอบหมาย</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>

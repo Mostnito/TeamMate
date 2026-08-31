@@ -1,11 +1,22 @@
 import { evalCriteriaList, leaderboardData, errorLogsData, securityAlertsData, recentFiles, statusMeta, boardColumnDefs } from '../data/seedData.js';
-import { IoMdFlag, IoMdHome, IoMdPeople, IoMdGrid, IoMdCheckbox, IoMdCalendar, IoMdStar, IoMdTime, IoMdChatbubbles, IoMdRibbon, IoMdDocument, IoMdCart, IoMdPricetag } from 'react-icons/io';
+import { IoMdFlag, IoMdHome, IoMdPeople, IoMdGrid, IoMdCheckbox, IoMdCalendar, IoMdStar, IoMdTime, IoMdChatbubbles, IoMdRibbon, IoMdDocument, IoMdCart, IoMdPricetag, IoMdNotifications } from 'react-icons/io';
 
 const monthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const weekdayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 
 function isLeaderOf(group, currentUser) {
   return group.members.some((m) => m.isLeader && (m.studentId === currentUser.studentId || m.name === currentUser.name));
+}
+
+function formatRelativeTime(dateStr) {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'เมื่อสักครู่';
+  if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`;
+  const days = Math.floor(hours / 24);
+  return `${days} วันที่แล้ว`;
 }
 
 // groups a flat task list into the 3 kanban columns (pending / in_progress / completed)
@@ -64,9 +75,10 @@ export default function deriveVals(state, actions) {
     { key: 'calendar', label: 'ปฏิทิน', icon: IoMdCalendar },
     { key: 'leaderboard', label: 'อันดับคะแนน', icon: IoMdStar },
     { key: 'achievements', label: 'ความสำเร็จ', icon: IoMdRibbon },
-    { key: 'shop', label: 'ร้านค้า', icon: IoMdCart }
+    { key: 'shop', label: 'ร้านค้า', icon: IoMdCart },
+    { key: 'notifications', label: 'การแจ้งเตือน', icon: IoMdNotifications }
   ];
-  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', adminAchievements: 'adminAchievements', adminTerms: 'adminTerms', adminShop: 'adminShop', leaderboard: 'leaderboard', achievements: 'achievements', shop: 'shop', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
+  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', adminAchievements: 'adminAchievements', adminTerms: 'adminTerms', adminShop: 'adminShop', leaderboard: 'leaderboard', achievements: 'achievements', shop: 'shop', notifications: 'notifications', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
 
   const leaderboardPeriodDefs = [
     { key: 'all', label: 'ทั้งหมด' }, { key: 'monthly', label: 'รายเดือน' }, { key: 'weekly', label: 'รายสัปดาห์' }, { key: 'daily', label: 'รายวัน' }
@@ -84,10 +96,12 @@ export default function deriveVals(state, actions) {
   const leaderboardRest = leaderboardRanked.slice(3);
 
   const activeKey = activeMap[s.screen] || '';
+  const unreadNotificationCount = s.notifications.filter((n) => !n.isRead).length;
   const navItems = navMap.map((n) => ({
     ...n, active: n.key === activeKey,
     iconColor: n.key === activeKey ? '#2563EB' : '#6B7280',
     textColor: n.key === activeKey ? '#2563EB' : '#374151',
+    badge: n.key === 'notifications' && unreadNotificationCount > 0 ? unreadNotificationCount : null,
     onClick: n.key === 'projects' ? actions.goProjects : actions.go(n.key === 'dashboard' ? 'dashboard' : n.key)
   }));
 
@@ -173,14 +187,25 @@ export default function deriveVals(state, actions) {
 
   const notificationDefs = [
     { key: 'newTask', label: 'งานใหม่', desc: 'รับการแจ้งเตือนเมื่อมีงานใหม่' },
-    { key: 'chatMsg', label: 'ข้อความในแชท', desc: 'รับการแจ้งเตือนเมื่อมีข้อความใหม่' },
-    { key: 'deadline', label: 'กำหนดส่งใกล้ถึง', desc: 'แจ้งเตือนก่อนถึงกำหนดส่งงาน 24 ชั่วโมง' },
-    { key: 'deadlineReminder', label: 'การประเมิน', desc: 'แจ้งเตือนเมื่อมีการประเมินผลงาน' }
+    { key: 'newMessage', label: 'ข้อความในแชท', desc: 'รับการแจ้งเตือนเมื่อมีข้อความใหม่' },
+    { key: 'dueDateReminder', label: 'กำหนดส่งใกล้ถึง', desc: 'แจ้งเตือนก่อนถึงกำหนดส่งงาน 24 ชั่วโมง' },
+    { key: 'evaluation', label: 'การประเมิน', desc: 'แจ้งเตือนเมื่อมีการประเมินผลงาน' }
   ];
   const notificationToggles = notificationDefs.map((n) => ({
     label: n.label, desc: n.desc, onToggle: actions.toggleNotif(n.key),
     bg: s.notifSettings[n.key] ? '#2563EB' : '#D8E1EC', knobLeft: s.notifSettings[n.key] ? '21px' : '3px'
   }));
+
+  const NOTIFICATION_TYPE_ICONS = { new_task: IoMdCheckbox, new_message: IoMdChatbubbles, due_date_reminder: IoMdTime, evaluation: IoMdStar };
+  const notificationItems = s.notifications.map((n) => ({
+    ...n,
+    icon: NOTIFICATION_TYPE_ICONS[n.type] || IoMdFlag,
+    timeAgo: formatRelativeTime(n.createdAt),
+    onClick: actions.openNotification(n),
+    onDelete: actions.deleteNotification(n.notificationId)
+  }));
+  const unreadNotifications = notificationItems.filter((n) => !n.isRead);
+  const hasUnreadNotifications = unreadNotifications.length > 0;
 
   const pendingQueue = s.moderationQueue.filter((m) => m.status === 'pending');
   const moderationItems = pendingQueue.map((m) => ({ ...m, onApprove: actions.resolveModeration(m.id, 'approved'), onReject: actions.resolveModeration(m.id, 'rejected') }));
@@ -221,6 +246,7 @@ export default function deriveVals(state, actions) {
   return {
     showSidebar, navItems, currentUserName, currentUserInitials, currentUserRoleLabel, currentUserId: s.currentUser.userId, currentUserAvatarUrl: s.currentUser.avatarUrl, currentUserTitle: s.currentUser.title, currentUserPublicId: s.currentUser.publicId,
     goSettings: actions.goSettings, settingsIconColor: settingsActive ? '#2563EB' : '#6B7280', settingsTextColor: settingsActive ? '#2563EB' : '#374151', handleLogout: actions.handleLogout,
+    goBack: actions.goBack,
     isLogin, loginEmail: s.loginEmail, loginPassword: s.loginPassword,
     loginPwType: s.loginShowPw ? 'text' : 'password', loginPwIcon: s.loginShowPw ? 'ซ่อน' : 'แสดง',
     onLoginEmailChange: actions.onLoginEmailChange, onLoginPasswordChange: actions.onLoginPasswordChange, toggleLoginPw: actions.toggleLoginPw,
@@ -248,7 +274,7 @@ export default function deriveVals(state, actions) {
     isTeamProgress: s.screen === 'teamProgress',
     isTeamChat: s.screen === 'teamChat',
     isTeamEvaluation: s.screen === 'teamEvaluation',
-    isTaskDetail: s.screen === 'taskDetail', selectedTaskId: s.selectedTaskId, openTaskDetail: actions.openTaskDetail, backToTeamDetail: actions.backToTeamDetail,
+    isTaskDetail: s.screen === 'taskDetail', selectedTaskId: s.selectedTaskId, openTaskDetail: actions.openTaskDetail,
     isProjects: s.screen === 'projects',
     projectCards: groupsData.map((g) => {
       const groupTasks = s.tasks.filter((t) => t.groupId === g.id);
@@ -268,12 +294,12 @@ export default function deriveVals(state, actions) {
     isTaskModalTimeline: s.taskModalColumn === 'timeline',
     evaluationMembers, exportEvaluation: actions.exportEvaluation, saveEvaluation: actions.saveEvaluation, saveEvaluationLabel: s.saveEvaluationLabel,
     evaluationComplete, exportBtnBg: evaluationComplete ? '#111827' : '#D1D5DB', exportBtnCursor: evaluationComplete ? 'pointer' : 'not-allowed',
-    isTimeline: s.screen === 'timeline', timelineTasks, openAddTaskTimeline: actions.openTaskModal('timeline'), goTeamDetail: actions.goTeamDetail,
+    isTimeline: s.screen === 'timeline', timelineTasks, openAddTaskTimeline: actions.openTaskModal('timeline'),
     isCurrentUserLeader: isLeaderOf(selectedGroup, { ...s.currentUser, name: currentUserName }),
     isProgress: s.screen === 'progress', overallProgress, recentFiles,
     isChat: s.screen === 'chat', chatMessages, chatInput: s.chatInput, onChatInputChange: actions.onChatInputChange, onChatKeyDown: actions.onChatKeyDown, sendChat: actions.sendChat,
     isAssignment: s.screen === 'assignment', assignmentIsList: s.assignmentView === 'list', assignmentIsKanban: s.assignmentView === 'kanban',
-    listViewBg, listViewColor, kanbanViewBg, kanbanViewColor, assignmentFilters, assignmentList, kanbanColumns, goAssignment: actions.go('assignment'),
+    listViewBg, listViewColor, kanbanViewBg, kanbanViewColor, assignmentFilters, assignmentList, kanbanColumns,
     addAssignment: actions.addAssignment, addCalendarEvent: actions.addCalendarEvent, isCurrentUserLeaderAny,
     setAssignmentViewList: actions.setAssignmentView('list'), setAssignmentViewKanban: actions.setAssignmentView('kanban'),
     isAssignmentDetail: s.screen === 'assignmentDetail', selectedAssignment, submitNote: s.submitNote, onSubmitNoteChange: actions.onSubmitNoteChange,
@@ -290,7 +316,8 @@ export default function deriveVals(state, actions) {
     isAdminTerms: s.screen === 'adminTerms',
     isShop: s.screen === 'shop',
     isAdminShop: s.screen === 'adminShop',
-    isUserProfile: s.screen === 'userProfile', viewedPublicId: s.viewedPublicId, openUserProfile: actions.openUserProfile, closeUserProfile: actions.closeUserProfile,
+    isNotifications: s.screen === 'notifications', notificationItems, unreadNotificationCount, hasUnreadNotifications, markAllNotificationsRead: actions.markAllNotificationsRead,
+    isUserProfile: s.screen === 'userProfile', viewedPublicId: s.viewedPublicId, openUserProfile: actions.openUserProfile,
     isAdminSettings: s.screen === 'adminSettings',
     hasModerationItems: moderationItems.length > 0, noModerationItems: moderationItems.length === 0, moderationItems,
     errorLogs: errorLogsData, securityAlerts: securityAlertsData,

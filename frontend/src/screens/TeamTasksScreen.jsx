@@ -92,7 +92,7 @@ export default function TeamTasksScreen({ v }) {
         onSubmit={handleSubmitTask}
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 700, fontSize: 15, cursor: 'pointer' }} onClick={v.backToTeamDetail}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 700, fontSize: 15, cursor: 'pointer' }} onClick={v.goBack}>
           <IoMdArrowBack size={16} /><span>งานที่ได้รับมอบหมาย</span>
         </div>
         {isLeader && <button onClick={() => setModalOpen(true)} style={{ ...btnPrimary, display: 'flex', alignItems: 'center', gap: 4 }}><IoMdAdd size={14} /> เพิ่มงาน</button>}

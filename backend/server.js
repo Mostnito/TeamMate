@@ -30,6 +30,9 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
+    // personal room for pushing notifications straight to this user regardless of which group/screen they're on
+    socket.join(`user_${socket.userId}`);
+
     // same reasoning as app.set('trust proxy', 1) above - Socket.IO's handshake.address is
     // the reverse proxy's loopback connection, so read the real client IP from the header instead
     const forwardedFor = socket.handshake.headers['x-forwarded-for'];
@@ -56,6 +59,18 @@ io.on('connection', (socket) => {
             const lastReadMessageId = readResult.rows[0].latest;
             if (lastReadMessageId != null) {
                 io.to(`group_${groupId}`).emit('read_receipt_updated', { groupId, userId: socket.userId, lastReadMessageId });
+            }
+
+            // opening the chat directly (not via the notification list) should also clear any pending
+            // "new message" notification for this group - otherwise it lingers as unread forever
+            const clearedResult = await pool.query(
+                `UPDATE notifications SET is_read = true
+                 WHERE user_id = $1 AND type = 'new_message' AND target_type = 'group' AND target_id = $2 AND is_read = false
+                 RETURNING notification_id`,
+                [socket.userId, groupId]
+            );
+            if (clearedResult.rows.length > 0) {
+                io.to(`user_${socket.userId}`).emit('notifications_read', { notificationIds: clearedResult.rows.map((r) => r.notification_id) });
             }
         } catch (err) {
             console.error('Error updating read receipt:', err);
@@ -90,6 +105,7 @@ io.on('connection', (socket) => {
                 imageUrl: null,
                 sentAt: msg.sent_at
             });
+            notifyNewGroupMessage(groupId, socket.userId);
 
             if (flagged.length > 0) {
                 await pool.query(
@@ -863,6 +879,94 @@ async function logActivity(userId, action, targetType, targetId, req) {
         console.error('Error logging activity:', err);
     }
 }
+
+// type is always one of the 4 hardcoded notification_type literals from call sites below, never user input,
+// so interpolating it as the notification_settings column name to check is safe
+async function createNotification(userId, type, title, message, targetType, targetId) {
+    try {
+        const settingsResult = await pool.query(`SELECT ${type} AS enabled FROM notification_settings WHERE user_id = $1`, [userId]);
+        if (settingsResult.rows.length > 0 && !settingsResult.rows[0].enabled) return;
+
+        const result = await pool.query(
+            `INSERT INTO notifications (user_id, type, title, message, target_type, target_id)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING notification_id, type, title, message, target_type, target_id, is_read, created_at`,
+            [userId, type, title, message, targetType, targetId]
+        );
+        const n = result.rows[0];
+        io.to(`user_${userId}`).emit('notification_created', {
+            notificationId: n.notification_id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            targetType: n.target_type,
+            targetId: n.target_id,
+            isRead: n.is_read,
+            createdAt: n.created_at
+        });
+    } catch (err) {
+        console.error('Error creating notification:', err);
+    }
+}
+
+// one unread "new message" notification per (user, group) - a burst of several messages while the
+// notification is still unread just bumps its timestamp instead of spamming a fresh row/toast per message.
+// also skips members currently connected to the group's chat room, since they're already seeing it live
+async function notifyNewGroupMessage(groupId, senderId) {
+    try {
+        const membersResult = await pool.query('SELECT user_id FROM group_members WHERE group_id = $1', [groupId]);
+        const groupResult = await pool.query('SELECT subject_name FROM groups WHERE group_id = $1', [groupId]);
+        const groupName = groupResult.rows[0]?.subject_name || '';
+        const room = io.sockets.adapter.rooms.get(`group_${groupId}`);
+        const activeUserIds = new Set();
+        if (room) {
+            for (const socketId of room) {
+                const s = io.sockets.sockets.get(socketId);
+                if (s) activeUserIds.add(s.userId);
+            }
+        }
+        for (const { user_id } of membersResult.rows) {
+            if (user_id === senderId || activeUserIds.has(user_id)) continue;
+
+            const settingsResult = await pool.query('SELECT new_message AS enabled FROM notification_settings WHERE user_id = $1', [user_id]);
+            if (settingsResult.rows.length > 0 && !settingsResult.rows[0].enabled) continue;
+
+            const existing = await pool.query(
+                `SELECT notification_id FROM notifications
+                 WHERE user_id = $1 AND type = 'new_message' AND target_type = 'group' AND target_id = $2 AND is_read = false`,
+                [user_id, groupId]
+            );
+            if (existing.rows.length > 0) {
+                // already has an unread "new message" notification for this group - bump it, don't duplicate
+                await pool.query('UPDATE notifications SET created_at = now() WHERE notification_id = $1', [existing.rows[0].notification_id]);
+                continue;
+            }
+            createNotification(user_id, 'new_message', 'ข้อความใหม่ในแชท', `คุณยังไม่ได้อ่านข้อความในแชท "${groupName}"`, 'group', groupId);
+        }
+    } catch (err) {
+        console.error('Error notifying new group message:', err);
+    }
+}
+
+// no cron infra exists in this codebase - a simple hourly interval is enough for a 24h-ahead due-date check.
+// the NOT EXISTS guard means each task gets exactly one reminder ever, no extra "reminded" column needed.
+async function sendDueDateReminders() {
+    try {
+        const result = await pool.query(
+            `SELECT task_id, title, assigned_to FROM tasks
+             WHERE due_date IS NOT NULL AND due_date BETWEEN now() AND now() + interval '24 hours'
+               AND status NOT IN ('completed', 'cancelled') AND assigned_to IS NOT NULL
+               AND NOT EXISTS (
+                   SELECT 1 FROM notifications WHERE type = 'due_date_reminder' AND target_type = 'task' AND target_id = tasks.task_id
+               )`
+        );
+        for (const task of result.rows) {
+            createNotification(task.assigned_to, 'due_date_reminder', 'งานใกล้ถึงกำหนดส่ง', `งาน "${task.title}" ใกล้ถึงกำหนดส่งแล้ว`, 'task', task.task_id);
+        }
+    } catch (err) {
+        console.error('Error sending due date reminders:', err);
+    }
+}
+setInterval(sendDueDateReminders, 60 * 60 * 1000);
 
 // each metric is a single count query keyed by user_id - used both to award achievements and to show progress
 const METRIC_QUERIES = {
@@ -2243,6 +2347,9 @@ app.post('/api/group/:id/evaluations', authenticateToken, async (req, res) => {
         console.log('Peer evaluations saved:', req.user.userId, '->', [...submittedIds].join(','), 'in group', groupId);
         logActivity(req.user.userId, 'submit_peer_evaluation', 'group', groupId, req);
         checkAndAwardAchievements(req.user.userId, 'evaluations_submitted');
+        for (const evaluateeId of submittedIds) {
+            createNotification(evaluateeId, 'evaluation', 'มีการประเมินผลงานใหม่', 'คุณได้รับการประเมินผลงานจากเพื่อนร่วมทีม', 'group', groupId);
+        }
         res.json({ message: 'บันทึกการประเมินทั้งหมดสำเร็จ' });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -2520,6 +2627,7 @@ app.post('/api/group/:id/messages/image', authenticateToken, (req, res) => {
                 sentAt: msg.sent_at
             };
             io.to(`group_${groupId}`).emit('message_received', payload);
+            notifyNewGroupMessage(groupId, req.user.userId);
             res.json(payload);
         } catch (dbErr) {
             fs.unlink(req.file.path, () => {});
@@ -2549,6 +2657,117 @@ app.get('/api/group/:id/message-reads', authenticateToken, async (req, res) => {
         res.json(result.rows.map((r) => ({ userId: r.user_id, lastReadMessageId: r.last_read_message_id })));
     } catch (err) {
         console.error('Error fetching message reads:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+app.get('/api/notifications', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT notification_id, type, title, message, target_type, target_id, is_read, created_at
+             FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+            [req.user.userId]
+        );
+        res.json(result.rows.map((n) => ({
+            notificationId: n.notification_id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            targetType: n.target_type,
+            targetId: n.target_id,
+            isRead: n.is_read,
+            createdAt: n.created_at
+        })));
+    } catch (err) {
+        console.error('Error fetching notifications:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+app.patch('/api/notifications/:id/read', authenticateToken, async (req, res) => {
+    const notificationId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(notificationId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        const result = await pool.query(
+            'UPDATE notifications SET is_read = true WHERE notification_id = $1 AND user_id = $2 RETURNING notification_id',
+            [notificationId, req.user.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบการแจ้งเตือนนี้' });
+        }
+        res.json({ message: 'ทำเครื่องหมายว่าอ่านแล้ว' });
+    } catch (err) {
+        console.error('Error marking notification read:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+app.patch('/api/notifications/read-all', authenticateToken, async (req, res) => {
+    try {
+        await pool.query('UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false', [req.user.userId]);
+        res.json({ message: 'ทำเครื่องหมายว่าอ่านแล้วทั้งหมด' });
+    } catch (err) {
+        console.error('Error marking all notifications read:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+app.delete('/api/notifications/:id', authenticateToken, async (req, res) => {
+    const notificationId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(notificationId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        const result = await pool.query(
+            'DELETE FROM notifications WHERE notification_id = $1 AND user_id = $2 RETURNING notification_id',
+            [notificationId, req.user.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบการแจ้งเตือนนี้' });
+        }
+        res.json({ message: 'ลบการแจ้งเตือนแล้ว' });
+    } catch (err) {
+        console.error('Error deleting notification:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+const DEFAULT_NOTIFICATION_SETTINGS = { newTask: true, newMessage: true, dueDateReminder: true, evaluation: true };
+
+app.get('/api/notification-settings', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT new_task, new_message, due_date_reminder, evaluation FROM notification_settings WHERE user_id = $1',
+            [req.user.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.json(DEFAULT_NOTIFICATION_SETTINGS);
+        }
+        const row = result.rows[0];
+        res.json({ newTask: row.new_task, newMessage: row.new_message, dueDateReminder: row.due_date_reminder, evaluation: row.evaluation });
+    } catch (err) {
+        console.error('Error fetching notification settings:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+app.put('/api/notification-settings', authenticateToken, async (req, res) => {
+    const { newTask, newMessage, dueDateReminder, evaluation } = req.body;
+    if ([newTask, newMessage, dueDateReminder, evaluation].some((v) => typeof v !== 'boolean')) {
+        return res.status(400).json({ error: 'ข้อมูลไม่ถูกต้อง' });
+    }
+    try {
+        await pool.query(
+            `INSERT INTO notification_settings (user_id, new_task, new_message, due_date_reminder, evaluation)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (user_id) DO UPDATE SET new_task = $2, new_message = $3, due_date_reminder = $4, evaluation = $5`,
+            [req.user.userId, newTask, newMessage, dueDateReminder, evaluation]
+        );
+        res.json({ message: 'บันทึกการตั้งค่าการแจ้งเตือนสำเร็จ' });
+    } catch (err) {
+        console.error('Error saving notification settings:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });
@@ -2636,6 +2855,9 @@ app.post('/api/group/:id/tasks', authenticateToken, async (req, res) => {
 
         console.log('Task created successfully:', task.task_id);
         logActivity(req.user.userId, 'create_task', 'task', task.task_id, req);
+        if (task.assigned_to && task.assigned_to !== req.user.userId) {
+            createNotification(task.assigned_to, 'new_task', 'งานใหม่ถูกมอบหมายให้คุณ', `งาน "${task.title}" ถูกมอบหมายให้คุณ`, 'task', task.task_id);
+        }
         res.status(201).json({
             taskId: task.task_id,
             title: task.title,
@@ -2747,11 +2969,12 @@ app.patch('/api/task/:id', authenticateToken, async (req, res) => {
     }
 
     try {
-        const taskResult = await pool.query('SELECT group_id FROM tasks WHERE task_id = $1', [taskId]);
+        const taskResult = await pool.query('SELECT group_id, assigned_to AS old_assigned_to FROM tasks WHERE task_id = $1', [taskId]);
         if (taskResult.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบงานนี้' });
         }
         const groupId = taskResult.rows[0].group_id;
+        const oldAssignedTo = taskResult.rows[0].old_assigned_to;
 
         if (!(await isGroupLeader(req.user.userId, groupId))) {
             return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่แก้ไขงานได้' });
@@ -2772,6 +2995,9 @@ app.patch('/api/task/:id', authenticateToken, async (req, res) => {
 
         console.log('Task updated successfully:', task.task_id);
         logActivity(req.user.userId, 'update_task', 'task', task.task_id, req);
+        if (task.assigned_to && task.assigned_to !== oldAssignedTo && task.assigned_to !== req.user.userId) {
+            createNotification(task.assigned_to, 'new_task', 'งานใหม่ถูกมอบหมายให้คุณ', `งาน "${task.title}" ถูกมอบหมายให้คุณ`, 'task', task.task_id);
+        }
         res.json({
             taskId: task.task_id,
             title: task.title,

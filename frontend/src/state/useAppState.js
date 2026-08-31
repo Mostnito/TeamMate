@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
   initialGroupsData, initialTasks,
@@ -33,7 +34,8 @@ const initialState = {
   submissions: [],
   submitButtonLabel: 'ส่งงาน',
   calYear: 2026, calMonth: 2,
-  notifSettings: { newTask: true, chatMsg: true, deadline: true, deadlineReminder: false },
+  notifSettings: { newTask: true, newMessage: true, dueDateReminder: true, evaluation: true },
+  notifications: [],
   adminFilter: 'all',
   adminTab: 'moderation',
   evaluations: {},
@@ -54,8 +56,16 @@ const initialState = {
   moderationQueue: initialModerationQueue,
   groupsData: initialGroupsData,
   myTeamCount: 0,
-  viewedPublicId: null
+  viewedPublicId: null,
+  screenHistory: []
 };
+
+// screen-changing actions snapshot the navigation-relevant slice of state here before applying the
+// new screen; goBack() below pops it - so every "back" arrow returns to wherever the user actually
+// came from instead of a hardcoded destination. Capped so a long session doesn't grow unbounded.
+const NAV_FIELDS = ['screen', 'teamId', 'selectedTaskId', 'selectedGroupId', 'teamTab', 'selectedAssignmentId', 'viewedPublicId'];
+const snapshotNav = (s) => NAV_FIELDS.reduce((acc, f) => { acc[f] = s[f]; return acc; }, {});
+const pushHistory = (s) => [...s.screenHistory, snapshotNav(s)].slice(-20);
 
 export default function useAppState() {
   const [state, setState] = useState(initialState);
@@ -67,18 +77,14 @@ export default function useAppState() {
 
   const stopPropagation = (e) => e.stopPropagation();
 
-  const go = (screen) => () => setState((s) => ({ ...s, screen }));
+  const go = (screen) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), screen }));
 
   // opens a shareable user profile - pushes a real /profile/:publicId URL so the address bar
   // is copy-pasteable, without pulling in a full router for just this one screen.
   // publicId is an opaque random token (not the sequential user_id) so links can't be enumerated.
   const openUserProfile = (publicId) => () => {
     window.history.pushState(null, '', `/profile/${publicId}`);
-    setState((s) => ({ ...s, screen: 'userProfile', viewedPublicId: publicId }));
-  };
-  const closeUserProfile = (fallbackScreen) => () => {
-    window.history.pushState(null, '', '/');
-    setState((s) => ({ ...s, screen: fallbackScreen }));
+    setState((s) => ({ ...s, screenHistory: pushHistory(s), screen: 'userProfile', viewedPublicId: publicId }));
   };
 
   const onLoginEmailChange = (e) => setState((s) => ({ ...s, loginEmail: e.target.value }));
@@ -89,7 +95,7 @@ export default function useAppState() {
   // this just applies the resulting session to central state once that call succeeds
   const completeLogin = (currentUser, isAdminMode, initialScreen) => setState((s) => ({
     ...s, screen: initialScreen?.screen || (isAdminMode ? 'adminActivity' : 'dashboard'), isAdminMode, currentUser,
-    viewedPublicId: initialScreen?.viewedPublicId ?? s.viewedPublicId
+    viewedPublicId: initialScreen?.viewedPublicId ?? s.viewedPublicId, screenHistory: []
   }));
 
   const updateCurrentUser = (patch) => setState((s) => ({ ...s, currentUser: { ...s.currentUser, ...patch } }));
@@ -114,7 +120,7 @@ export default function useAppState() {
 
   // actual creation happens via /api/group/create directly in CreateGroupScreen.jsx;
   // this just applies the result to central state once that call succeeds
-  const onGroupCreated = (groupCode) => setState((s) => ({ ...s, newGroupCode: groupCode, screen: 'groupCreated' }));
+  const onGroupCreated = (groupCode) => setState((s) => ({ ...s, screenHistory: pushHistory(s), newGroupCode: groupCode, screen: 'groupCreated' }));
 
   const onJoinDigit = (i) => (e) => {
     const v = e.target.value.slice(-1);
@@ -123,7 +129,7 @@ export default function useAppState() {
 
   // actual join happens via /api/group/join directly in JoinGroupScreen.jsx / DashboardEmptyScreen.jsx;
   // this just applies the result to central state once that call succeeds
-  const onGroupJoined = () => setState((s) => ({ ...s, joinDigits: ['', '', '', '', '', ''], screen: 'teams' }));
+  const onGroupJoined = () => setState((s) => ({ ...s, screenHistory: pushHistory(s), joinDigits: ['', '', '', '', '', ''], screen: 'teams' }));
 
   const copyCode = () => {
     setState((s) => {
@@ -133,24 +139,22 @@ export default function useAppState() {
     setTimeout(() => setState((s) => ({ ...s, copyLabel: 'คัดลอก' })), 1500);
   };
 
-  const openGroup = (id) => () => setState((s) => ({ ...s, selectedGroupId: id, screen: 'teamDetail', teamTab: 'overview' }));
-  const goTeamDetail = () => setState((s) => ({ ...s, screen: 'teamDetail', teamTab: 'overview' }));
-  const goProjects = () => setState((s) => ({ ...s, screen: 'projects' }));
-  const goJoinGroup = () => setState((s) => ({ ...s, screen: 'joinGroup', joinDigits: ['', '', '', '', '', ''] }));
-  const openProjectTasks = (groupId) => () => setState((s) => ({ ...s, selectedGroupId: groupId, teamTab: 'tasks', screen: 'timeline' }));
+  const openGroup = (id) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), selectedGroupId: id, screen: 'teamDetail', teamTab: 'overview' }));
+  const goProjects = () => setState((s) => ({ ...s, screenHistory: pushHistory(s), screen: 'projects' }));
+  const goJoinGroup = () => setState((s) => ({ ...s, screenHistory: pushHistory(s), screen: 'joinGroup', joinDigits: ['', '', '', '', '', ''] }));
+  const openProjectTasks = (groupId) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), selectedGroupId: groupId, teamTab: 'tasks', screen: 'timeline' }));
 
   // TeamDetailScreen is the sole consumer of setTeamTab (real teams only, wired to real APIs).
   const setTeamTab = (tab) => () => {
     const screen = tab === 'tasks' ? 'teamTasks' : tab === 'progress' ? 'teamProgress' : tab === 'chat' ? 'teamChat' : tab === 'evaluation' ? 'teamEvaluation' : 'teamDetail';
-    setState((s) => ({ ...s, teamTab: tab, screen }));
+    setState((s) => ({ ...s, screenHistory: pushHistory(s), teamTab: tab, screen }));
   };
 
   // real team navigation (Phase 1) - fully separate from the mock selectedGroupId/groupsData system above
-  const openTeam = (groupId) => () => setState((s) => ({ ...s, teamId: groupId, teamTab: 'overview', screen: 'teamDetail' }));
-  const goTeamTasks = () => setState((s) => ({ ...s, screen: 'teamTasks' }));
-  const openTaskDetail = (taskId, groupId) => () => setState((s) => ({ ...s, selectedTaskId: taskId, ...(groupId != null ? { teamId: groupId } : {}), screen: 'taskDetail' }));
-  const backToTeamDetail = () => setState((s) => ({ ...s, screen: 'teamDetail', teamTab: 'overview' }));
-  const openTeamTasks = (groupId) => () => setState((s) => ({ ...s, teamId: groupId, teamTab: 'tasks', screen: 'teamTasks' }));
+  const openTeam = (groupId) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), teamId: groupId, teamTab: 'overview', screen: 'teamDetail' }));
+  const goTeamTasks = () => setState((s) => ({ ...s, screenHistory: pushHistory(s), screen: 'teamTasks' }));
+  const openTaskDetail = (taskId, groupId) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), selectedTaskId: taskId, ...(groupId != null ? { teamId: groupId } : {}), screen: 'taskDetail' }));
+  const openTeamTasks = (groupId) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), teamId: groupId, teamTab: 'tasks', screen: 'teamTasks' }));
 
   const getEvalEntry = (groupCode, studentId, s) => {
     const key = groupCode + '|' + studentId;
@@ -252,8 +256,8 @@ export default function useAppState() {
     notify('success', isTimeline ? ('มอบหมายงานให้ ' + assignee.name + ' แล้ว') : 'เพิ่มงานลงบอร์ดแล้ว');
   };
 
-  const openTask = (id) => () => setState((s) => ({ ...s, selectedAssignmentId: id, screen: 'progress' }));
-  const openAssignmentDetail = (id) => () => setState((s) => ({ ...s, selectedAssignmentId: id, submissions: [], submitNote: '', submitButtonLabel: 'ส่งงาน', screen: 'assignmentDetail' }));
+  const openTask = (id) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), selectedAssignmentId: id, screen: 'progress' }));
+  const openAssignmentDetail = (id) => () => setState((s) => ({ ...s, screenHistory: pushHistory(s), selectedAssignmentId: id, submissions: [], submitNote: '', submitButtonLabel: 'ส่งงาน', screen: 'assignmentDetail' }));
 
   const setAssignmentFilter = (f) => () => setState((s) => ({ ...s, assignmentFilter: f }));
   const setAssignmentView = (v) => () => setState((s) => ({ ...s, assignmentView: v }));
@@ -295,7 +299,49 @@ export default function useAppState() {
   const prevMonth = () => setState((s) => { let m = s.calMonth - 1, y = s.calYear; if (m < 0) { m = 11; y--; } return { ...s, calMonth: m, calYear: y }; });
   const nextMonth = () => setState((s) => { let m = s.calMonth + 1, y = s.calYear; if (m > 11) { m = 0; y++; } return { ...s, calMonth: m, calYear: y }; });
 
-  const toggleNotif = (key) => () => setState((s) => ({ ...s, notifSettings: { ...s.notifSettings, [key]: !s.notifSettings[key] } }));
+  const toggleNotif = (key) => () => setState((s) => {
+    const notifSettings = { ...s.notifSettings, [key]: !s.notifSettings[key] };
+    const token = localStorage.getItem('token');
+    axios.put('/api/notification-settings', notifSettings, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    return { ...s, notifSettings };
+  });
+
+  const setNotifSettings = (notifSettings) => setState((s) => ({ ...s, notifSettings }));
+  const setNotifications = (notifications) => setState((s) => ({ ...s, notifications }));
+  const addNotification = (n) => setState((s) => ({ ...s, notifications: [n, ...s.notifications] }));
+  const markNotificationRead = (notificationId) => {
+    setState((s) => ({ ...s, notifications: s.notifications.map((n) => n.notificationId === notificationId ? { ...n, isRead: true } : n) }));
+    const token = localStorage.getItem('token');
+    axios.patch(`/api/notifications/${notificationId}/read`, {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+  };
+  // local-only update for notifications the backend already marked read server-side (e.g. opening a
+  // group's chat directly instead of clicking through the notification list) - no PATCH call needed here
+  const markNotificationsReadByIds = (ids) => setState((s) => ({
+    ...s, notifications: s.notifications.map((n) => ids.includes(n.notificationId) ? { ...n, isRead: true } : n)
+  }));
+  const markAllNotificationsRead = () => {
+    setState((s) => ({ ...s, notifications: s.notifications.map((n) => ({ ...n, isRead: true })) }));
+    const token = localStorage.getItem('token');
+    axios.patch('/api/notifications/read-all', {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+  };
+  const deleteNotification = (notificationId) => (e) => {
+    e.stopPropagation();
+    setState((s) => ({ ...s, notifications: s.notifications.filter((n) => n.notificationId !== notificationId) }));
+    const token = localStorage.getItem('token');
+    axios.delete(`/api/notifications/${notificationId}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+  };
+  // routes to the screen the notification is about, based on its type - task-related types land on
+  // the task detail, the other two (both stored with target_type='group') land on the relevant team tab
+  const openNotification = (n) => () => {
+    markNotificationRead(n.notificationId);
+    if (n.type === 'new_task' || n.type === 'due_date_reminder') {
+      setState((s) => ({ ...s, screenHistory: pushHistory(s), selectedTaskId: n.targetId, screen: 'taskDetail' }));
+    } else if (n.type === 'new_message') {
+      setState((s) => ({ ...s, screenHistory: pushHistory(s), teamId: n.targetId, screen: 'teamChat' }));
+    } else if (n.type === 'evaluation') {
+      setState((s) => ({ ...s, screenHistory: pushHistory(s), teamId: n.targetId, teamTab: 'evaluation', screen: 'teamEvaluation' }));
+    }
+  };
 
   const setAdminFilter = (f) => () => setState((s) => ({ ...s, adminFilter: f }));
   const setAdminTab = (t) => () => setState((s) => ({ ...s, adminTab: t }));
@@ -311,7 +357,7 @@ export default function useAppState() {
     localStorage.removeItem('token');
     setState((s) => ({
       ...s, screen: 'login', isAdminMode: false, loginEmail: '', loginPassword: '',
-      currentUser: { name: '', firstName: '' }
+      currentUser: { name: '', firstName: '' }, screenHistory: []
     }));
   };
   const onPolicy = (field) => (e) => { const v = e.target.value; setState((s) => ({ ...s, policy: { ...s.policy, [field]: v } })); };
@@ -330,15 +376,23 @@ export default function useAppState() {
     notify(status === 'approved' ? 'success' : 'error', status === 'approved' ? 'อนุมัติรายการแล้ว' : 'ปฏิเสธรายการแล้ว');
   };
 
-  const goSettings = () => setState((s) => ({ ...s, screen: s.isAdminMode ? 'adminSettings' : 'settings' }));
+  const goSettings = () => setState((s) => ({ ...s, screenHistory: pushHistory(s), screen: s.isAdminMode ? 'adminSettings' : 'settings' }));
+
+  // generic "back" for every back-arrow in the app - pops the most recent snapshot instead of each
+  // screen having its own hardcoded return destination
+  const goBack = () => setState((s) => {
+    if (s.screenHistory.length === 0) return { ...s, screen: 'dashboard' };
+    const prev = s.screenHistory[s.screenHistory.length - 1];
+    return { ...s, ...prev, screenHistory: s.screenHistory.slice(0, -1) };
+  });
 
   const actions = {
-    notify, stopPropagation, go, goSettings,
-    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser, setMyTeamCount, openUserProfile, closeUserProfile,
+    notify, stopPropagation, go, goSettings, goBack,
+    onLoginEmailChange, onLoginPasswordChange, toggleLoginPw, completeLogin, updateCurrentUser, setMyTeamCount, openUserProfile,
     onSu, onSuSkillOther, toggleGender, toggleSkill, resetSu,
     onGroupCreated, onJoinDigit, onGroupJoined, copyCode,
-    openGroup, goTeamDetail, goProjects, goJoinGroup, openProjectTasks, openTeamTasks, setTeamTab,
-    openTeam, goTeamTasks, openTaskDetail, backToTeamDetail,
+    openGroup, goProjects, goJoinGroup, openProjectTasks, openTeamTasks, setTeamTab,
+    openTeam, goTeamTasks, openTaskDetail,
     getEvalEntry, setEvalRating, setEvalNote, setLeaderboardPeriod,
     saveEvaluation, exportEvaluation,
     onChatInputChange, onChatKeyDown, sendChat,
@@ -346,7 +400,7 @@ export default function useAppState() {
     openTask, openAssignmentDetail, setAssignmentFilter, setAssignmentView, addAssignment, addCalendarEvent,
     simulateUpload, removeSubmission, onSubmitNoteChange, handleSubmitAssignment,
     prevMonth, nextMonth,
-    toggleNotif,
+    toggleNotif, setNotifSettings, setNotifications, addNotification, markNotificationRead, markNotificationsReadByIds, markAllNotificationsRead, deleteNotification, openNotification,
     setAdminFilter, setAdminTab, onAdminProfile, handleLogout, onPolicy, toggleAdminNotif,
     toggleAdminUserRole, addAdminUser, saveAdminSettings, resolveModeration
   };

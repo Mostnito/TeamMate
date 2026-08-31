@@ -5,7 +5,7 @@ export default function AssignmentDetailScreen({ v }) {
   const a = v.selectedAssignment;
   return (
     <div style={{ padding: '22px 28px', maxWidth: 760 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6B7280', fontSize: 12, marginBottom: 6, cursor: 'pointer' }} onClick={v.goAssignment}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6B7280', fontSize: 12, marginBottom: 6, cursor: 'pointer' }} onClick={v.goBack}>
         <IoMdArrowBack size={14} /><span>ตัวเลือก</span><span>|</span><span style={{ color: '#111827', fontWeight: 600 }}>{a.title}</span>
       </div>
       <div style={{ fontWeight: 700, fontSize: 17, color: '#111827', marginTop: 8 }}>{a.title}</div>

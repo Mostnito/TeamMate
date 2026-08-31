@@ -173,7 +173,7 @@ export default function SignupScreen({ v }) {
 
   return (
     <div style={{ minHeight: '100%' }}>
-      <div style={{ height: 67, background: '#2563EB', display: 'flex', alignItems: 'center', padding: '0 29px', gap: 12, color: '#fff', fontWeight: 600, fontSize: 17, cursor: 'pointer' }} onClick={v.goLogin}>
+      <div style={{ height: 67, background: '#2563EB', display: 'flex', alignItems: 'center', padding: '0 29px', gap: 12, color: '#fff', fontWeight: 600, fontSize: 17, cursor: 'pointer' }} onClick={v.goBack}>
         <IoMdArrowBack size={19} /><span>สมัครสมาชิก TeamMate</span>
       </div>
       <div style={{ maxWidth: 640, margin: '34px auto', background: '#fff', borderRadius: 19, padding: 38, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
@@ -200,7 +200,7 @@ export default function SignupScreen({ v }) {
             </div>
             <div>
               <div style={labelLg}>รหัสนิสิต</div>
-              <input value={v.su.studentId} onChange={v.onSuStudentId} placeholder="65x xxxxxx" style={inputLg} />
+              <input value={v.su.studentId} onChange={v.onSuStudentId} placeholder="66xxxxxx" style={inputLg} />
             </div>
           </div>
         )}

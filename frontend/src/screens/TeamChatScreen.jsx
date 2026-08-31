@@ -161,7 +161,7 @@ export default function TeamChatScreen({ v }) {
         onSubmit={handleSubmitReport}
       />
       <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 10, background: '#fff' }}>
-        <span style={{ cursor: 'pointer', color: '#374151', display: 'flex' }} onClick={v.backToTeamDetail}><IoMdArrowBack size={16} /></span>
+        <span style={{ cursor: 'pointer', color: '#374151', display: 'flex' }} onClick={v.goBack}><IoMdArrowBack size={16} /></span>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>แชททีม</div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -34,7 +34,7 @@ export default function CreateGroupScreen({ v }) {
 
   return (
     <div style={{ padding: '26px 28px', minHeight: 'calc(100% - 52px)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer', color: '#374151', fontWeight: 600, fontSize: 14 }} onClick={v.goDashboard}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer', color: '#374151', fontWeight: 600, fontSize: 14 }} onClick={v.goBack}>
         <IoMdArrowBack size={16} /><span>สร้างกลุ่มเรียน</span>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

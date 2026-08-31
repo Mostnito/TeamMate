@@ -211,7 +211,7 @@ export default function TeamDetailScreen({ v }) {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 600, fontSize: 13.5, marginBottom: 14, cursor: 'pointer' }} onClick={v.goTeams}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 600, fontSize: 13.5, marginBottom: 14, cursor: 'pointer' }} onClick={v.goBack}>
         <IoMdArrowBack size={16} /><span>{groupInfo.subjectName}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 16, boxShadow: '0 6px 18px rgba(0,0,0,0.05)' }}>

@@ -5,7 +5,7 @@ export default function ChatScreen({ v }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 10, background: '#fff' }}>
-        <span style={{ cursor: 'pointer', color: '#374151', display: 'flex' }} onClick={v.goTeamDetail}><IoMdArrowBack size={16} /></span>
+        <span style={{ cursor: 'pointer', color: '#374151', display: 'flex' }} onClick={v.goBack}><IoMdArrowBack size={16} /></span>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}># กลุ่ม {g.code}</div>
           <div style={{ fontSize: 11, color: '#6B7280' }}>{g.memberCount} สมาชิก · 3 ผู้ใช้งาน</div>

@@ -166,7 +166,7 @@ export default function TeamEvaluationScreen({ v }) {
 
   return (
     <div style={{ padding: '22px 28px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 700, fontSize: 15, marginBottom: 18, cursor: 'pointer' }} onClick={v.backToTeamDetail}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontWeight: 700, fontSize: 15, marginBottom: 18, cursor: 'pointer' }} onClick={v.goBack}>
         <IoMdArrowBack size={16} /><span>ประเมินเพื่อนร่วมทีม</span>
       </div>
 

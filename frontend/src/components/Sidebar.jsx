@@ -27,7 +27,12 @@ export default function Sidebar({ v, isDrawerOpen, onCloseDrawer }) {
             style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontSize: 16, fontWeight: 500, background: item.active ? '#F3F8FF' : 'transparent' }}
           >
             <span style={{ width: 24, textAlign: 'center', display: 'flex', justifyContent: 'center' }}><item.icon size={18} color={item.iconColor} /></span>
-            <span style={{ color: item.textColor }}>{item.label}</span>
+            <span style={{ color: item.textColor, flex: 1 }}>{item.label}</span>
+            {item.badge && (
+              <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: '#DC2626', color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>
+                {item.badge}
+              </span>
+            )}
           </div>
         ))}
       </div>

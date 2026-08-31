@@ -27,7 +27,7 @@ export default function UserProfileScreen({ v }) {
   return (
     <div style={{ padding: '22px 28px', maxWidth: 720 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div onClick={v.closeUserProfile('dashboard')} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#374151', fontWeight: 600, fontSize: 13.5 }}>
+        <div onClick={v.goBack} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#374151', fontWeight: 600, fontSize: 13.5 }}>
           <IoMdArrowBack size={16} /><span>กลับ</span>
         </div>
       </div>

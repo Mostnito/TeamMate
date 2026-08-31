@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { ToastContainer } from 'react-toastify';
+import { io } from 'socket.io-client';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import useAppState from './state/useAppState.js';
@@ -44,6 +45,7 @@ import AdminTermsScreen from './screens/AdminTermsScreen.jsx';
 import ShopScreen from './screens/ShopScreen.jsx';
 import AdminShopScreen from './screens/AdminShopScreen.jsx';
 import UserProfileScreen from './screens/UserProfileScreen.jsx';
+import NotificationsScreen from './screens/NotificationsScreen.jsx';
 import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 
 export default function App() {
@@ -81,6 +83,30 @@ export default function App() {
       });
     return () => controller.abort();
   }, []);
+
+  // persistent connection + initial fetch for notifications, kept alive for the whole session (unlike
+  // TeamChatScreen's socket which is scoped to that screen) - keyed on currentUserId so it covers both
+  // a fresh login (LoginScreen.jsx) and a page-refresh session restore (the effect above), and tears
+  // down on logout when currentUserId goes back to null
+  useEffect(() => {
+    const userId = state.currentUser.userId;
+    if (userId == null) return;
+    const token = localStorage.getItem('token');
+    const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
+
+    axios.get('/api/notifications', authHeaders).then((res) => actions.setNotifications(res.data)).catch(() => {});
+    axios.get('/api/notification-settings', authHeaders).then((res) => actions.setNotifSettings(res.data)).catch(() => {});
+
+    const socket = io('/', { auth: { token } });
+    socket.on('notification_created', (n) => {
+      actions.addNotification(n);
+      toast.info(n.title);
+    });
+    socket.on('notifications_read', ({ notificationIds }) => {
+      actions.markNotificationsReadByIds(notificationIds);
+    });
+    return () => socket.disconnect();
+  }, [state.currentUser.userId]);
 
   // the /profile/:publicId URL is only ever pushed by openUserProfile; if navigation away from
   // that screen happens through any other path (sidebar clicks, opening a team, etc.) the address
@@ -144,6 +170,7 @@ export default function App() {
             {v.isShop && <ShopScreen />}
             {v.isAdminShop && <AdminShopScreen />}
             {v.isUserProfile && <UserProfileScreen v={v} />}
+            {v.isNotifications && <NotificationsScreen v={v} />}
             {v.isAdminSettings && <AdminSettingsScreen v={v} />}
           </div>
         </div>
