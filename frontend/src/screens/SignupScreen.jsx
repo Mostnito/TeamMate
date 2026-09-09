@@ -25,7 +25,6 @@ const LETTERS_ONLY_PATTERN = /^[\p{L}\p{M}\s]+$/u;
 const labelLg = { ...label, fontSize: 14.5 };
 const inputLg = { ...input, fontSize: 15.5, padding: '13px 16px', borderRadius: 11 };
 
-// major heading ("1. คำนิยาม") gets emphasis; numbered sub-items ("5.1", "6.3") stay plain body text
 const MAJOR_HEADING_PATTERN = /^\d+\.\s/;
 function renderTermsContent(text) {
   return (text || '').split('\n').map((line, i) => {

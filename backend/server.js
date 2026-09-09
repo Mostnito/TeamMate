@@ -508,7 +508,7 @@ app.get('/api/profile/:publicId', authenticateToken, async (req, res) => {
         }
         const userId = userLookup.rows[0].user_id;
 
-        const [userResult, skillsResult, achievementsResult] = await Promise.all([
+        const [userResult, skillsResult, achievementsResult, groupsCountResult, tasksSubmittedResult, avgEvaluationResult] = await Promise.all([
             pool.query(
                 `SELECT u.public_id, u.firstname, u.lastname, u.nickname, u.student_id, u.avatar_path, u.email, u.phone, si.name AS title
                  FROM users u LEFT JOIN shop_items si ON si.item_id = u.equipped_title_id WHERE u.user_id = $1`,
@@ -522,6 +522,16 @@ app.get('/api/profile/:publicId', authenticateToken, async (req, res) => {
                 `SELECT a.achievement_id, a.name, a.description, a.img_path, a.points_reward, ua.earned_at
                  FROM user_achievements ua JOIN achievements a ON a.achievement_id = ua.achievement_id
                  WHERE ua.user_id = $1 ORDER BY ua.earned_at DESC`,
+                [userId]
+            ),
+            // same aggregation already used by the achievements system's METRIC_QUERIES (groups_joined)
+            pool.query('SELECT COUNT(*)::int FROM group_members WHERE user_id = $1', [userId]),
+            // same as METRIC_QUERIES.tasks_submitted
+            pool.query('SELECT COUNT(*)::int FROM task_submissions WHERE submitted_by = $1', [userId]),
+            pool.query(
+                `SELECT ROUND(AVG(pes.score)::numeric, 2) AS avg_score
+                 FROM peer_evaluations pe JOIN peer_evaluation_scores pes ON pes.peer_evaluation_id = pe.peer_evaluation_id
+                 WHERE pe.evaluatee_id = $1`,
                 [userId]
             )
         ]);
@@ -544,7 +554,12 @@ app.get('/api/profile/:publicId', authenticateToken, async (req, res) => {
                 imgPath: a.img_path,
                 pointsReward: a.points_reward,
                 earnedAt: a.earned_at
-            }))
+            })),
+            stats: {
+                groupsCount: groupsCountResult.rows[0].count,
+                tasksSubmittedCount: tasksSubmittedResult.rows[0].count,
+                avgEvaluationScore: avgEvaluationResult.rows[0].avg_score !== null ? Number(avgEvaluationResult.rows[0].avg_score) : null
+            }
         });
     } catch (err) {
         console.error('Error fetching public profile:', err);

@@ -70,6 +70,24 @@ export default function UserProfileScreen({ v }) {
             )}
           </div>
 
+          <div style={{ ...card, marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>สถิติส่วนตัว</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, textAlign: 'center' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 22, color: '#2563EB' }}>{profile.stats.groupsCount}</div>
+                <div style={{ fontSize: 11.5, color: '#6B7280', marginTop: 3 }}>กลุ่มที่เข้าร่วม</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 22, color: '#16A34A' }}>{profile.stats.tasksSubmittedCount}</div>
+                <div style={{ fontSize: 11.5, color: '#6B7280', marginTop: 3 }}>งานที่ส่งแล้ว</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 22, color: '#D97706' }}>{profile.stats.avgEvaluationScore != null ? profile.stats.avgEvaluationScore : '-'}</div>
+                <div style={{ fontSize: 11.5, color: '#6B7280', marginTop: 3 }}>คะแนนประเมินเฉลี่ย{profile.stats.avgEvaluationScore != null ? ' / 5' : ''}</div>
+              </div>
+            </div>
+          </div>
+
           <div style={card}>
             <div style={{ fontWeight: 700, fontSize: 13.5, color: '#111827', marginBottom: 14 }}>ความสำเร็จ ({profile.achievements.length})</div>
             {profile.achievements.length === 0 ? (
