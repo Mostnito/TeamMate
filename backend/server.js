@@ -2090,7 +2090,7 @@ app.get('/api/user/me/calendar-events', authenticateToken, async (req, res) => {
         const { start, end } = monthRange(req.query.month);
 
         const eventsResult = await pool.query(
-            `SELECT ce.calendar_event_id, ce.group_id, ce.title, ce.event_date, ce.end_date,
+            `SELECT ce.calendar_event_id, ce.group_id, ce.title, ce.event_date, ce.end_date, ce.event_type_id,
                     et.label_th, et.color, g.subject_code, g.subject_name
              FROM calendar_events ce
              JOIN group_members gm ON gm.group_id = ce.group_id AND gm.user_id = $1
@@ -2118,6 +2118,7 @@ app.get('/api/user/me/calendar-events', authenticateToken, async (req, res) => {
             title: r.title,
             date: r.event_date.toISOString().slice(0, 10),
             endDate: r.end_date ? r.end_date.toISOString().slice(0, 10) : null,
+            eventTypeId: r.event_type_id,
             label: r.label_th,
             color: r.color
         }));
@@ -2155,6 +2156,9 @@ app.post('/api/group/:id/calendar-events', authenticateToken, async (req, res) =
     if (!eventDate || Number.isNaN(Date.parse(eventDate))) {
         return res.status(400).json({ error: 'กรุณาเลือกวันที่ให้ถูกต้อง' });
     }
+    if (endDate && Date.parse(endDate) < Date.parse(eventDate)) {
+        return res.status(400).json({ error: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' });
+    }
     const eventTypeIdInt = parseInt(eventTypeId, 10);
     if (!Number.isInteger(eventTypeIdInt)) {
         return res.status(400).json({ error: 'กรุณาเลือกประเภทกิจกรรม' });
@@ -2182,6 +2186,77 @@ app.post('/api/group/:id/calendar-events', authenticateToken, async (req, res) =
         res.status(201).json({ message: 'เพิ่มกิจกรรมสำเร็จ', calendarEventId: result.rows[0].calendar_event_id });
     } catch (err) {
         console.error('Error creating calendar event:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Edit a calendar event (leader of the event's group only)
+app.patch('/api/calendar-events/:id', authenticateToken, async (req, res) => {
+    const eventId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(eventId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    const { title, eventDate, endDate, eventTypeId } = req.body;
+    if (!title || !title.trim() || title.trim().length > 200) {
+        return res.status(400).json({ error: 'กรุณากรอกชื่อกิจกรรมให้ถูกต้อง (ไม่เกิน 200 ตัวอักษร)' });
+    }
+    if (!eventDate || Number.isNaN(Date.parse(eventDate))) {
+        return res.status(400).json({ error: 'กรุณาเลือกวันที่ให้ถูกต้อง' });
+    }
+    if (endDate && Date.parse(endDate) < Date.parse(eventDate)) {
+        return res.status(400).json({ error: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' });
+    }
+    const eventTypeIdInt = parseInt(eventTypeId, 10);
+    if (!Number.isInteger(eventTypeIdInt)) {
+        return res.status(400).json({ error: 'กรุณาเลือกประเภทกิจกรรม' });
+    }
+
+    try {
+        const eventResult = await pool.query('SELECT group_id FROM calendar_events WHERE calendar_event_id = $1', [eventId]);
+        if (eventResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบกิจกรรมนี้' });
+        }
+        const groupId = eventResult.rows[0].group_id;
+        if (!(await isGroupLeader(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่แก้ไขกิจกรรมได้' });
+        }
+        const typeCheck = await pool.query('SELECT 1 FROM event_types WHERE event_type_id = $1', [eventTypeIdInt]);
+        if (typeCheck.rows.length === 0) {
+            return res.status(400).json({ error: 'ประเภทกิจกรรมไม่ถูกต้อง' });
+        }
+
+        await pool.query(
+            `UPDATE calendar_events SET title = $1, event_date = $2, end_date = $3, event_type_id = $4 WHERE calendar_event_id = $5`,
+            [title.trim(), toUtcMidnight(eventDate), endDate ? toUtcMidnight(endDate) : null, eventTypeIdInt, eventId]
+        );
+        logActivity(req.user.userId, 'update_calendar_event', 'group', groupId, req);
+        res.json({ message: 'แก้ไขกิจกรรมสำเร็จ' });
+    } catch (err) {
+        console.error('Error updating calendar event:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Delete a calendar event (leader of the event's group only)
+app.delete('/api/calendar-events/:id', authenticateToken, async (req, res) => {
+    const eventId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(eventId)) {
+        return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+    }
+    try {
+        const eventResult = await pool.query('SELECT group_id FROM calendar_events WHERE calendar_event_id = $1', [eventId]);
+        if (eventResult.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบกิจกรรมนี้' });
+        }
+        const groupId = eventResult.rows[0].group_id;
+        if (!(await isGroupLeader(req.user.userId, groupId))) {
+            return res.status(403).json({ error: 'เฉพาะหัวหน้าทีมเท่านั้นที่ลบกิจกรรมได้' });
+        }
+        await pool.query('DELETE FROM calendar_events WHERE calendar_event_id = $1', [eventId]);
+        logActivity(req.user.userId, 'delete_calendar_event', 'group', groupId, req);
+        res.json({ message: 'ลบกิจกรรมสำเร็จ' });
+    } catch (err) {
+        console.error('Error deleting calendar event:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
     }
 });

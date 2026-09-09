@@ -4,7 +4,22 @@ import { toast } from 'react-toastify';
 import { label, input, btnPrimary, btnSecondary } from '../styles/common.js';
 import { IoMdArrowBack } from 'react-icons/io';
 
-const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
+// stricter than a bare "text@text.text" shape - rejects non-ASCII local parts (e.g. Thai characters)
+// and single-letter TLDs like the ".c" in "หดด@fgchbfgc.c"
+const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+// Thai mobile numbers only: 10 digits starting with 06, 08, or 09
+const PHONE_PATTERN = /^0[689][0-9]{8}$/;
+
+// su.phone always stores raw digits only (matches PHONE_PATTERN / what the backend expects) -
+// the XXX-XXX-XXXX dashes are purely a display transform applied in the input's value
+function formatPhoneDisplay(digits) {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+}
+// \p{M} is required alongside \p{L} - Thai tone marks and vowel signs (e.g. the ้ in "ก้อง") are
+// combining marks, not letters on their own, so \p{L} alone would reject ordinary Thai names
+const LETTERS_ONLY_PATTERN = /^[\p{L}\p{M}\s]+$/u;
 
 // login/register pages are scaled ~120% up from the shared base styles for extra readability
 const labelLg = { ...label, fontSize: 14.5 };
@@ -92,24 +107,40 @@ export default function SignupScreen({ v }) {
   const validateStep = (stepIndex) => {
     const su = v.su;
     if (stepIndex === 0) {
-      if (!su.firstName || !su.lastName || !su.nickname) return 'กรุณากรอกข้อมูลให้ครบถ้วน';
+      if (!su.firstName || !su.lastName || !su.nickname || !su.studentId) return 'กรุณากรอกข้อมูลให้ครบถ้วน';
+      if (!LETTERS_ONLY_PATTERN.test(su.firstName) || !LETTERS_ONLY_PATTERN.test(su.lastName) || !LETTERS_ONLY_PATTERN.test(su.nickname)) {
+        return 'กรุณากรอกชื่อจริง, นามสกุลและชื่อเล่นเป็นตัวอักษรเท่านั้น';
+      }
+      if (!/^[0-9]+$/.test(su.studentId.trim())) return 'กรุณากรอกรหัสนิสิตเป็นตัวเลขเท่านั้น';
+      if (su.studentId.trim().length !== 8) return 'กรุณากรอกรหัสนิสิตให้ครบ 8 หลัก';
     }
     if (stepIndex === 1) {
       if (!su.gender) return 'กรุณาเลือกเพศ';
       if (!su.birthdate) return 'กรุณาเลือกวันเกิด';
+      const birthDate = new Date(su.birthdate);
+      const today = new Date();
+      if (birthDate > today) return 'วันเกิดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง';
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const hadBirthdayThisYear = today.getMonth() > birthDate.getMonth() || (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+      if (!hadBirthdayThisYear) age--;
+      if (age < 10 || age > 100) return 'วันเกิดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง';
     }
     if (stepIndex === 2) {
+      if (su.skills.length === 0) return 'กรุณาเลือกความถนัดอย่างน้อย 1 รายการ';
       if (v.showSkillOtherInput) {
         const err = validateSkillOther(su.skillOther);
         if (err) { setSkillOtherError(err); return err; }
       }
     }
     if (stepIndex === 3) {
-      if (!su.email || !EMAIL_PATTERN.test(su.email)) return 'กรุณากรอกอีเมลให้ถูกต้อง';
-      if (!/^[0-9]+$/.test((su.phone || '').trim())) return 'กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลขเท่านั้น';
+      if (!su.email || !EMAIL_PATTERN.test(su.email)) return 'กรุณากรอกรูปแบบอีเมลให้ถูกต้อง';
+      if (!PHONE_PATTERN.test((su.phone || '').trim())) return 'กรุณากรอกเบอร์โทรให้ถูกต้อง';
     }
     if (stepIndex === 4) {
       if (!su.password || su.password.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+      const hasLetter = /[a-zA-Z]/.test(su.password);
+      const hasDigitOrSpecial = /[0-9]/.test(su.password) || /[^a-zA-Z0-9]/.test(su.password);
+      if (!hasLetter || !hasDigitOrSpecial) return 'รหัสผ่านต้องมีตัวอักษร และมีตัวเลขหรืออักขระพิเศษอย่างน้อย 1 ตัว';
       if (su.password !== su.confirmPassword) return 'รหัสผ่านไม่ตรงกัน';
     }
     return '';
@@ -200,7 +231,7 @@ export default function SignupScreen({ v }) {
             </div>
             <div>
               <div style={labelLg}>รหัสนิสิต</div>
-              <input value={v.su.studentId} onChange={v.onSuStudentId} placeholder="66xxxxxx" style={inputLg} />
+              <input value={v.su.studentId} onChange={v.onSuStudentId} placeholder="66xxxxxx" maxLength={8} style={inputLg} />
             </div>
           </div>
         )}
@@ -220,7 +251,10 @@ export default function SignupScreen({ v }) {
             </div>
             <div>
               <div style={labelLg}>วันเกิด</div>
-              <input type="date" value={v.su.birthdate} onChange={v.onSuBirthdate} style={inputLg} />
+              {/* lang="th" nudges Chromium browsers (Chrome/Edge) to display day/month/year order;
+                  Firefox/Safari may still fall back to their own OS locale - not fully controllable
+                  cross-browser without giving up the native calendar picker, which was the tradeoff chosen */}
+              <input type="date" lang="th" value={v.su.birthdate} onChange={v.onSuBirthdate} style={inputLg} />
             </div>
           </div>
         )}
@@ -253,7 +287,13 @@ export default function SignupScreen({ v }) {
             </div>
             <div>
               <div style={labelLg}>เบอร์โทรศัพท์</div>
-              <input value={v.su.phone} onChange={v.onSuPhone} placeholder="0xx-xxx-xxxx" style={inputLg} />
+              <input
+                value={formatPhoneDisplay(v.su.phone || '')}
+                onChange={(e) => v.onSuPhone({ target: { value: e.target.value.replace(/\D/g, '').slice(0, 10) } })}
+                placeholder="0xx-xxx-xxxx"
+                maxLength={12}
+                style={inputLg}
+              />
             </div>
           </div>
         )}
