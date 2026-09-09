@@ -124,7 +124,7 @@ CREATE TABLE points (
     user_id       INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     group_id      INTEGER REFERENCES groups(group_id) ON DELETE CASCADE,
     task_id       INTEGER REFERENCES tasks(task_id) ON DELETE SET NULL,
-    points_earned INTEGER NOT NULL,
+    points_earned NUMERIC(6,2) NOT NULL, -- was INTEGER; widened to support fractional bonus awards (+0.5, +1.5, +0.1)
     reason        VARCHAR(255) NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

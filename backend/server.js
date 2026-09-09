@@ -803,6 +803,10 @@ app.post('/api/group/create', authenticateToken, async (req, res) => {
         logActivity(req.user.userId, 'create_group', 'group', group.group_id, req);
         checkAndAwardAchievements(req.user.userId, 'groups_created');
         checkAndAwardAchievements(req.user.userId, 'groups_joined');
+        pool.query(
+            `INSERT INTO points (user_id, group_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
+            [req.user.userId, group.group_id, 0.5, 'สร้างกลุ่มและเป็นหัวหน้าทีม']
+        ).catch((err) => console.error('Error awarding leader points:', err));
         res.status(201).json({
             groupId: group.group_id,
             groupCode: group.group_code,
@@ -1221,7 +1225,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
         }
         const result = await pool.query(
             `SELECT u.user_id, u.firstname, u.lastname, u.nickname, u.student_id, u.email, u.system_role, u.is_active, u.avatar_path, u.created_at,
-                    COALESCE(SUM(p.points_earned) FILTER (WHERE p.points_earned > 0), 0)::int AS points
+                    COALESCE(SUM(p.points_earned) FILTER (WHERE p.points_earned > 0), 0)::numeric(6,2) AS points
              FROM users u
              LEFT JOIN points p ON p.user_id = u.user_id
              GROUP BY u.user_id
@@ -1238,7 +1242,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
             isActive: r.is_active,
             avatarUrl: r.avatar_path,
             createdAt: r.created_at,
-            points: r.points
+            points: Number(r.points)
         })));
     } catch (err) {
         console.error('Error fetching admin user list:', err);
@@ -1741,7 +1745,7 @@ app.get('/api/shop/items', authenticateToken, async (req, res) => {
         const [itemsResult, ownedResult, balanceResult, userResult] = await Promise.all([
             pool.query('SELECT item_id, type, name, description, cost, is_active FROM shop_items ORDER BY cost ASC'),
             pool.query('SELECT item_id FROM user_purchases WHERE user_id = $1', [req.user.userId]),
-            pool.query('SELECT COALESCE(SUM(points_earned), 0)::int AS balance FROM points WHERE user_id = $1', [req.user.userId]),
+            pool.query('SELECT COALESCE(SUM(points_earned), 0)::numeric(6,2) AS balance FROM points WHERE user_id = $1', [req.user.userId]),
             pool.query('SELECT equipped_title_id FROM users WHERE user_id = $1', [req.user.userId])
         ]);
         const ownedIds = new Set(ownedResult.rows.map((r) => r.item_id));
@@ -1758,7 +1762,7 @@ app.get('/api/shop/items', authenticateToken, async (req, res) => {
                 isOwned: ownedIds.has(i.item_id),
                 isEquipped: i.item_id === equippedTitleId
             }));
-        res.json({ balance: balanceResult.rows[0].balance, items });
+        res.json({ balance: Number(balanceResult.rows[0].balance), items });
     } catch (err) {
         console.error('Error fetching shop items:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
@@ -1788,8 +1792,8 @@ app.post('/api/shop/items/:id/purchase', authenticateToken, async (req, res) => 
             return res.status(409).json({ error: 'คุณมีไอเทมนี้อยู่แล้ว' });
         }
 
-        const balanceResult = await client.query('SELECT COALESCE(SUM(points_earned), 0)::int AS balance FROM points WHERE user_id = $1', [req.user.userId]);
-        if (balanceResult.rows[0].balance < item.cost) {
+        const balanceResult = await client.query('SELECT COALESCE(SUM(points_earned), 0)::numeric(6,2) AS balance FROM points WHERE user_id = $1', [req.user.userId]);
+        if (Number(balanceResult.rows[0].balance) < item.cost) {
             await client.query('ROLLBACK');
             return res.status(400).json({ error: 'แต้มไม่เพียงพอ' });
         }
@@ -1957,10 +1961,10 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
 app.get('/api/user/me/points', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT COALESCE(SUM(points_earned), 0)::int AS total_points FROM points WHERE user_id = $1 AND points_earned > 0',
+            'SELECT COALESCE(SUM(points_earned), 0)::numeric(6,2) AS total_points FROM points WHERE user_id = $1 AND points_earned > 0',
             [req.user.userId]
         );
-        res.json({ points: result.rows[0].total_points });
+        res.json({ points: Number(result.rows[0].total_points) });
     } catch (err) {
         console.error('Error fetching user points:', err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
@@ -1990,7 +1994,7 @@ app.get('/api/leaderboard', authenticateToken, async (req, res) => {
         const since = leaderboardSince(req.query.period);
         const result = await pool.query(
             `SELECT u.user_id, u.firstname, u.lastname, u.student_id, u.avatar_path, s.name AS title,
-                    COALESCE(SUM(p.points_earned) FILTER (WHERE p.points_earned > 0), 0)::int AS total_points
+                    COALESCE(SUM(p.points_earned) FILTER (WHERE p.points_earned > 0), 0)::numeric(6,2) AS total_points
              FROM users u
              LEFT JOIN points p ON p.user_id = u.user_id AND ($1::timestamptz IS NULL OR p.created_at >= $1)
              LEFT JOIN shop_items s ON s.item_id = u.equipped_title_id
@@ -2006,7 +2010,7 @@ app.get('/api/leaderboard', authenticateToken, async (req, res) => {
             studentId: r.student_id,
             avatarUrl: r.avatar_path,
             title: r.title,
-            points: r.total_points
+            points: Number(r.total_points)
         })));
     } catch (err) {
         console.error('Error fetching leaderboard:', err);
@@ -2413,6 +2417,13 @@ app.post('/api/group/:id/evaluations', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'รายชื่อสมาชิกมีการเปลี่ยนแปลง กรุณาโหลดหน้าใหม่' });
         }
 
+        // "completed evaluating this group" happens exactly once meaningfully per (evaluator, group) -
+        // this same endpoint upserts on resubmit, so dedup the bonus the same way
+        const alreadyAwarded = await pool.query(
+            `SELECT 1 FROM points WHERE user_id = $1 AND group_id = $2 AND reason = 'ประเมินเพื่อนร่วมทีมครบ'`,
+            [req.user.userId, groupId]
+        );
+
         await client.query('BEGIN');
         for (const e of evaluations) {
             const comment = (e.comment || '').trim() || null;
@@ -2437,6 +2448,12 @@ app.post('/api/group/:id/evaluations', authenticateToken, async (req, res) => {
         console.log('Peer evaluations saved:', req.user.userId, '->', [...submittedIds].join(','), 'in group', groupId);
         logActivity(req.user.userId, 'submit_peer_evaluation', 'group', groupId, req);
         checkAndAwardAchievements(req.user.userId, 'evaluations_submitted');
+        if (alreadyAwarded.rows.length === 0) {
+            pool.query(
+                `INSERT INTO points (user_id, group_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
+                [req.user.userId, groupId, 1.5, 'ประเมินเพื่อนร่วมทีมครบ']
+            ).catch((err) => console.error('Error awarding evaluation points:', err));
+        }
         for (const evaluateeId of submittedIds) {
             createNotification(evaluateeId, 'evaluation', 'มีการประเมินผลงานใหม่', 'คุณได้รับการประเมินผลงานจากเพื่อนร่วมทีม', 'group', groupId);
         }
@@ -3295,11 +3312,11 @@ app.post('/api/task/:id/submission', authenticateToken, async (req, res) => {
     const { note } = req.body;
 
     try {
-        const taskResult = await pool.query('SELECT assigned_to, status FROM tasks WHERE task_id = $1', [taskId]);
+        const taskResult = await pool.query('SELECT assigned_to, status, due_date FROM tasks WHERE task_id = $1', [taskId]);
         if (taskResult.rows.length === 0) {
             return res.status(404).json({ error: 'ไม่พบงานนี้' });
         }
-        const { assigned_to: assignedTo, status } = taskResult.rows[0];
+        const { assigned_to: assignedTo, status, due_date: dueDate } = taskResult.rows[0];
 
         if (assignedTo == null) {
             return res.status(400).json({ error: 'งานนี้ยังไม่ได้มอบหมายให้ใคร' });
@@ -3310,6 +3327,11 @@ app.post('/api/task/:id/submission', authenticateToken, async (req, res) => {
         if (status === 'pending') {
             return res.status(400).json({ error: 'กรุณากดเริ่มดำเนินการก่อนจึงจะส่งงานได้' });
         }
+
+        // the row's mere existence IS the "already submitted before" signal - only a task's very
+        // first submission is eligible for the on-time bonus, resubmitting/editing never re-earns it
+        const existingSubmission = await pool.query('SELECT 1 FROM task_submissions WHERE task_id = $1', [taskId]);
+        const isFirstSubmission = existingSubmission.rows.length === 0;
 
         const result = await pool.query(
             `INSERT INTO task_submissions (task_id, submitted_by, note) VALUES ($1, $2, $3)
@@ -3322,6 +3344,15 @@ app.post('/api/task/:id/submission', authenticateToken, async (req, res) => {
         console.log('Task submission saved successfully:', taskId);
         logActivity(req.user.userId, 'submit_task', 'task', taskId, req);
         checkAndAwardAchievements(req.user.userId, 'tasks_submitted');
+        if (isFirstSubmission) {
+            const onTime = !dueDate || new Date() < new Date(new Date(dueDate).getTime() + 24 * 60 * 60 * 1000);
+            if (onTime) {
+                pool.query(
+                    `INSERT INTO points (user_id, task_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
+                    [req.user.userId, taskId, 0.5, 'ส่งงานตรงเวลา']
+                ).catch((err) => console.error('Error awarding on-time submission points:', err));
+            }
+        }
         res.json({
             taskId: result.rows[0].task_id,
             submittedBy: result.rows[0].submitted_by,
@@ -3369,6 +3400,10 @@ app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'ยังไม่มีการส่งงานสำหรับงานนี้' });
         }
 
+        // a task can be reviewed multiple times across reject -> resubmit -> review cycles, but the
+        // bonus is "per task", not "per review action" - dedup on whether this task has ever paid out
+        const alreadyAwarded = await pool.query(`SELECT 1 FROM points WHERE task_id = $1 AND reason = 'ตรวจงาน'`, [taskId]);
+
         const result = await pool.query(
             `INSERT INTO task_reviews (task_id, reviewed_by, review_status, comment)
              VALUES ($1, $2, $3, $4)
@@ -3381,6 +3416,12 @@ app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
         console.log('Task review saved successfully:', taskId);
         logActivity(req.user.userId, 'review_task', 'task', taskId, req);
         checkAndAwardAchievements(req.user.userId, 'tasks_reviewed');
+        if (alreadyAwarded.rows.length === 0) {
+            pool.query(
+                `INSERT INTO points (user_id, task_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
+                [req.user.userId, taskId, 0.1, 'ตรวจงาน']
+            ).catch((err) => console.error('Error awarding review points:', err));
+        }
         res.status(201).json({
             reviewId: result.rows[0].task_review_id,
             reviewedBy: result.rows[0].reviewed_by,
