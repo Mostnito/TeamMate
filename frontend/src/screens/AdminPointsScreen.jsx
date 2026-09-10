@@ -139,7 +139,7 @@ export default function AdminPointsScreen() {
                   <span onClick={() => setSelectedUser(null)} style={{ fontSize: 11.5, color: '#2563EB', fontWeight: 600, cursor: 'pointer' }}>เปลี่ยน</span>
                 </div>
                 <div style={{ marginBottom: 14 }}>
-                  <div style={label}>จำนวนคะแนน (ใส่เครื่องหมาย - เพื่อหักคะแนน)</div>
+                  <div style={label}>จำนวนคะแนน</div>
                   <input type="number" value={adjustForm.amount} onChange={(e) => setAdjustForm((f) => ({ ...f, amount: e.target.value }))} placeholder="เช่น 10 หรือ -5" style={inputStyle} />
                 </div>
                 <div style={{ marginBottom: 6 }}>
@@ -149,7 +149,7 @@ export default function AdminPointsScreen() {
                 <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                   <button onClick={closeModal} disabled={isSubmitting} style={{ ...btnSecondary, flex: 1, padding: 11 }}>ยกเลิก</button>
                   <button onClick={handleSubmitAdjust} disabled={!canSubmit || isSubmitting} style={{ ...btnPrimary, flex: 2, padding: 11, opacity: !canSubmit || isSubmitting ? 0.7 : 1, cursor: !canSubmit || isSubmitting ? 'not-allowed' : 'pointer' }}>
-                    {isSubmitting ? 'กำลังบันทึก...' : 'บันทึก'}
+                    {isSubmitting ? 'กำลังบันทึก...' : 'ยืนยัน'}
                   </button>
                 </div>
               </>
@@ -164,7 +164,7 @@ export default function AdminPointsScreen() {
           <div style={{ fontSize: 12, color: '#6B7280' }}>ประวัติคะแนนของผู้ใช้ทั้งหมดใ</div>
         </div>
         <button onClick={openModal} style={{ ...btnPrimary, padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IoMdAdd size={14} /> ปรับคะแนน
+          จัดการคะแนน
         </button>
       </div>
 
