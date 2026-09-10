@@ -805,7 +805,7 @@ app.post('/api/group/create', authenticateToken, async (req, res) => {
         checkAndAwardAchievements(req.user.userId, 'groups_joined');
         pool.query(
             `INSERT INTO points (user_id, group_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
-            [req.user.userId, group.group_id, 0.5, 'สร้างกลุ่มและเป็นหัวหน้าทีม']
+            [req.user.userId, group.group_id, 1, 'สร้างกลุ่มและเป็นหัวหน้าทีม']
         ).catch((err) => console.error('Error awarding leader points:', err));
         res.status(201).json({
             groupId: group.group_id,
@@ -2451,7 +2451,7 @@ app.post('/api/group/:id/evaluations', authenticateToken, async (req, res) => {
         if (alreadyAwarded.rows.length === 0) {
             pool.query(
                 `INSERT INTO points (user_id, group_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
-                [req.user.userId, groupId, 1.5, 'ประเมินเพื่อนร่วมทีมครบ']
+                [req.user.userId, groupId, 15, 'ประเมินเพื่อนร่วมทีมครบ']
             ).catch((err) => console.error('Error awarding evaluation points:', err));
         }
         for (const evaluateeId of submittedIds) {
@@ -3349,7 +3349,7 @@ app.post('/api/task/:id/submission', authenticateToken, async (req, res) => {
             if (onTime) {
                 pool.query(
                     `INSERT INTO points (user_id, task_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
-                    [req.user.userId, taskId, 0.5, 'ส่งงานตรงเวลา']
+                    [req.user.userId, taskId, 5, 'ส่งงานตรงเวลา']
                 ).catch((err) => console.error('Error awarding on-time submission points:', err));
             }
         }
@@ -3419,7 +3419,7 @@ app.post('/api/task/:id/review', authenticateToken, async (req, res) => {
         if (alreadyAwarded.rows.length === 0) {
             pool.query(
                 `INSERT INTO points (user_id, task_id, points_earned, reason) VALUES ($1, $2, $3, $4)`,
-                [req.user.userId, taskId, 0.1, 'ตรวจงาน']
+                [req.user.userId, taskId, 1, 'ตรวจงาน']
             ).catch((err) => console.error('Error awarding review points:', err));
         }
         res.status(201).json({
