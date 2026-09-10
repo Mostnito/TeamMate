@@ -1912,6 +1912,90 @@ app.get('/api/admin/activity-logs', authenticateToken, async (req, res) => {
     }
 });
 
+//Points ledger across all users - admin only, filterable by user name and date range (mirrors /api/admin/activity-logs)
+app.get('/api/admin/points', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+
+        const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+        const before = req.query.before ? parseInt(req.query.before, 10) : null;
+        const startDate = req.query.startDate ? toUtcMidnight(req.query.startDate) : null;
+        const endDate = req.query.endDate ? toUtcMidnight(req.query.endDate) : null; // exclusive upper bound, see below
+        const userSearch = req.query.userSearch ? `%${req.query.userSearch.trim()}%` : null;
+
+        const result = await pool.query(
+            `SELECT p.point_id, p.user_id, p.points_earned, p.reason, p.created_at, p.group_id, g.subject_code, g.subject_name,
+                    u.firstname, u.lastname, u.nickname
+             FROM points p
+             LEFT JOIN users u ON u.user_id = p.user_id
+             LEFT JOIN groups g ON g.group_id = p.group_id
+             WHERE ($1::int IS NULL OR p.point_id < $1)
+               AND ($2::timestamptz IS NULL OR p.created_at >= $2)
+               AND ($3::timestamptz IS NULL OR p.created_at < $3 + interval '1 day')
+               AND ($4::varchar IS NULL OR u.firstname ILIKE $4 OR u.lastname ILIKE $4 OR u.nickname ILIKE $4)
+             ORDER BY p.point_id DESC
+             LIMIT $5`,
+            [before, startDate, endDate, userSearch, limit]
+        );
+
+        res.json(result.rows.map((r) => ({
+            pointId: r.point_id,
+            userId: r.user_id,
+            userName: r.user_id ? `${r.firstname} ${r.lastname} (${r.nickname})` : '(บัญชีที่ถูกลบแล้ว)',
+            pointsEarned: Number(r.points_earned),
+            reason: r.reason,
+            createdAt: r.created_at,
+            groupLabel: r.group_id ? `${r.subject_code} · ${r.subject_name}` : null
+        })));
+    } catch (err) {
+        console.error('Error fetching points ledger:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
+//Manually add/remove points for a user - admin only
+app.post('/api/admin/points/adjust', authenticateToken, async (req, res) => {
+    try {
+        if (!(await isAdmin(req.user.userId))) {
+            return res.status(403).json({ error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เข้าถึงได้' });
+        }
+
+        const targetUserId = parseInt(req.body.userId, 10);
+        const amount = Number(req.body.amount);
+        const reason = (req.body.reason || '').trim();
+
+        if (!Number.isInteger(targetUserId)) {
+            return res.status(400).json({ error: 'กรุณาเลือกผู้ใช้' });
+        }
+        if (!Number.isFinite(amount) || amount === 0) {
+            return res.status(400).json({ error: 'กรุณากรอกจำนวนคะแนนที่ไม่เป็นศูนย์' });
+        }
+        if (Math.abs(amount) > 10000) {
+            return res.status(400).json({ error: 'จำนวนคะแนนต้องไม่เกิน 10,000 ต่อครั้ง' });
+        }
+        if (!reason || reason.length > 200) {
+            return res.status(400).json({ error: 'กรุณาระบุเหตุผล (ไม่เกิน 200 ตัวอักษร)' });
+        }
+
+        const userCheck = await pool.query('SELECT 1 FROM users WHERE user_id = $1', [targetUserId]);
+        if (userCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'ไม่พบผู้ใช้งานนี้' });
+        }
+
+        await pool.query(
+            'INSERT INTO points (user_id, points_earned, reason) VALUES ($1, $2, $3)',
+            [targetUserId, amount, `[แอดมิน] ${reason}`]
+        );
+        logActivity(req.user.userId, 'admin_adjust_points', 'user', targetUserId, req);
+        res.status(201).json({ message: amount > 0 ? 'เพิ่มคะแนนสำเร็จ' : 'หักคะแนนสำเร็จ' });
+    } catch (err) {
+        console.error('Error adjusting points:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 //Task attachment upload
 const taskAttachmentDir = path.join(__dirname, 'uploads', 'tasks');
 fs.mkdirSync(taskAttachmentDir, { recursive: true });

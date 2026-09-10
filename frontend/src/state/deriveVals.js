@@ -1,6 +1,6 @@
 import { evalCriteriaList, leaderboardData, errorLogsData, securityAlertsData, recentFiles, statusMeta, boardColumnDefs } from '../data/seedData.js';
-import { IoMdFlag, IoMdHome, IoMdPeople, IoMdGrid, IoMdCheckbox, IoMdCalendar, IoMdStar, IoMdTime, IoMdChatbubbles, IoMdRibbon, IoMdDocument, IoMdCart, IoMdPricetag, IoMdNotifications } from 'react-icons/io';
-
+import { IoMdFlag, IoMdHome, IoMdPeople, IoMdGrid, IoMdCheckbox, IoMdCalendar, IoMdStar, IoMdTime, IoMdChatbubbles, IoMdRibbon, IoMdDocument, IoMdCart, IoMdPricetag, IoMdNotifications, IoMdCash } from 'react-icons/io';
+import { VscDebugBreakpointLog } from "react-icons/vsc";
 const monthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const weekdayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 
@@ -66,7 +66,8 @@ export default function deriveVals(state, actions) {
     { key: 'adminGroups', label: 'กลุ่ม', icon: IoMdGrid },
     { key: 'adminAchievements', label: 'จัดการความสำเร็จ', icon: IoMdRibbon },
     { key: 'adminTerms', label: 'ข้อกำหนดการใช้งาน', icon: IoMdDocument },
-    { key: 'adminShop', label: 'จัดการร้านค้า', icon: IoMdPricetag }
+    { key: 'adminShop', label: 'จัดการร้านค้า', icon: IoMdPricetag },
+    { key: 'adminPoints', label: 'จัดการคะแนน', icon: VscDebugBreakpointLog }
   ] : [
     { key: 'dashboard', label: 'แดชบอร์ด', icon: IoMdHome },
     { key: 'teams', label: 'ทีม', icon: IoMdPeople },
@@ -78,7 +79,7 @@ export default function deriveVals(state, actions) {
     { key: 'shop', label: 'ร้านค้า', icon: IoMdCart },
     { key: 'notifications', label: 'การแจ้งเตือน', icon: IoMdNotifications }
   ];
-  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', adminAchievements: 'adminAchievements', adminTerms: 'adminTerms', adminShop: 'adminShop', leaderboard: 'leaderboard', achievements: 'achievements', shop: 'shop', notifications: 'notifications', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
+  const activeMap = { dashboard: 'dashboard', createGroup: 'dashboard', groupCreated: 'dashboard', teams: 'teams', teamDetail: 'teams', joinGroup: 'teams', projects: 'projects', timeline: 'projects', progress: 'projects', chat: 'teams', assignment: 'assignment', assignmentDetail: 'assignment', calendar: 'calendar', admin: 'admin', adminModeration: 'adminModeration', adminUsers: 'adminUsers', adminGroups: 'adminGroups', adminActivity: 'adminActivity', adminAchievements: 'adminAchievements', adminTerms: 'adminTerms', adminShop: 'adminShop', adminPoints: 'adminPoints', leaderboard: 'leaderboard', achievements: 'achievements', shop: 'shop', notifications: 'notifications', teamTasks: 'teams', taskDetail: 'teams', teamProgress: 'teams', teamChat: 'teams' };
 
   const leaderboardPeriodDefs = [
     { key: 'all', label: 'ทั้งหมด' }, { key: 'monthly', label: 'รายเดือน' }, { key: 'weekly', label: 'รายสัปดาห์' }, { key: 'daily', label: 'รายวัน' }
@@ -317,6 +318,7 @@ export default function deriveVals(state, actions) {
     isAdminTerms: s.screen === 'adminTerms',
     isShop: s.screen === 'shop',
     isAdminShop: s.screen === 'adminShop',
+    isAdminPoints: s.screen === 'adminPoints',
     isNotifications: s.screen === 'notifications', notificationItems, unreadNotificationCount, hasUnreadNotifications, markAllNotificationsRead: actions.markAllNotificationsRead,
     isUserProfile: s.screen === 'userProfile', viewedPublicId: s.viewedPublicId, openUserProfile: actions.openUserProfile,
     isAdminSettings: s.screen === 'adminSettings',

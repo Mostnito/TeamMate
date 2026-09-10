@@ -28,7 +28,8 @@ const ACTION_LABELS = {
   activate_user: 'เปิดใช้งานบัญชี',
   deactivate_user: 'ปิดใช้งานบัญชี',
   change_user_role: 'เปลี่ยนบทบาทผู้ใช้',
-  admin_update_user: 'แก้ไขข้อมูลผู้ใช้ (แอดมิน)'
+  admin_update_user: 'แก้ไขข้อมูลผู้ใช้ (แอดมิน)',
+  admin_adjust_points: 'ปรับคะแนนผู้ใช้ (แอดมิน)'
 };
 
 const PAGE_SIZE = 50;
