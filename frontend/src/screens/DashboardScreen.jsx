@@ -57,7 +57,7 @@ export default function DashboardScreen({ v }) {
     <div style={{ padding: '26px 28px' }}>
       <div style={{ background: '#2563EB', borderRadius: 14, padding: '18px 22px', color: '#fff', marginBottom: 22 }}>
         <div style={{ fontWeight: 700, fontSize: 15 }}>ยินดีต้อนรับ, {v.firstNameShort}</div>
-        <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 3 }}>นี่คือภาพรวมงานและทีมของคุณวันนี้</div>
+        <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 3 }}>ภาพรวมงานและทีมของคุณ</div>
       </div>
       <div className="grid-3" style={{ gap: 16, marginBottom: 22 }}>
         <div style={{ background: '#fff', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
@@ -68,7 +68,7 @@ export default function DashboardScreen({ v }) {
           <div style={{ fontSize: 11.5, color: '#6B7280', fontWeight: 600 }}>งานที่ต้องทำ</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#B45309', marginTop: 4 }}>{isLoading ? '-' : tasks.length}</div>
         </div>
-        <div style={{ background: '#fff', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
+        <div onClick={v.goPointsHistory} style={{ background: '#fff', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 14px rgba(0,0,0,0.04)', cursor: 'pointer' }}>
           <div style={{ fontSize: 11.5, color: '#6B7280', fontWeight: 600 }}>คะแนนสะสม</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#2563EB', marginTop: 4 }}>{isLoading ? '-' : points}</div>
         </div>

@@ -235,7 +235,7 @@ export default function SettingsScreen({ v }) {
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
         <button onClick={handleCancel} style={btnSecondary}>ยกเลิก</button>
         <button onClick={handleSave} disabled={isSubmitting} style={{ ...btnPrimary, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
-          {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+          {isSubmitting ? 'กำลังบันทึก...' : 'บันทึก'}
         </button>
       </div>
     </div>

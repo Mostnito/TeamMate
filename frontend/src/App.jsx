@@ -46,6 +46,7 @@ import ShopScreen from './screens/ShopScreen.jsx';
 import AdminShopScreen from './screens/AdminShopScreen.jsx';
 import UserProfileScreen from './screens/UserProfileScreen.jsx';
 import NotificationsScreen from './screens/NotificationsScreen.jsx';
+import PointsHistoryScreen from './screens/PointsHistoryScreen.jsx';
 import AdminSettingsScreen from './screens/AdminSettingsScreen.jsx';
 
 export default function App() {
@@ -167,10 +168,11 @@ export default function App() {
             {v.isAchievements && <AchievementsScreen v={v} />}
             {v.isAdminAchievements && <AdminAchievementsScreen />}
             {v.isAdminTerms && <AdminTermsScreen />}
-            {v.isShop && <ShopScreen />}
+            {v.isShop && <ShopScreen v={v} />}
             {v.isAdminShop && <AdminShopScreen />}
             {v.isUserProfile && <UserProfileScreen v={v} />}
             {v.isNotifications && <NotificationsScreen v={v} />}
+            {v.isPointsHistory && <PointsHistoryScreen v={v} />}
             {v.isAdminSettings && <AdminSettingsScreen v={v} />}
           </div>
         </div>

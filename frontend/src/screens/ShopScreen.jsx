@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { card, btnPrimary, btnSecondary } from '../styles/common.js';
 import { IoMdPricetag } from 'react-icons/io';
 
-export default function ShopScreen() {
+export default function ShopScreen({ v }) {
   const [items, setItems] = useState([]);
   const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,8 +54,8 @@ export default function ShopScreen() {
           <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>ร้านค้า</div>
           <div style={{ fontSize: 12, color: '#6B7280' }}>ใช้คะแนนที่สะสมแลกฉายาและของรางวัลอื่น ๆ</div>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#D97706', background: '#FEF3C7', padding: '9px 18px', borderRadius: 10, whiteSpace: 'nowrap' }}>
-          คะแนนที่ใช้ได้: {balance}
+        <div onClick={v.goPointsHistory} style={{ fontSize: 13, fontWeight: 700, color: '#D97706', background: '#FEF3C7', padding: '9px 18px', borderRadius: 10, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+          คะแนน: {balance}
         </div>
       </div>
 

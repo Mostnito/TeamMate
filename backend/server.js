@@ -1971,6 +1971,33 @@ app.get('/api/user/me/points', authenticateToken, async (req, res) => {
     }
 });
 
+//Full points ledger for the logged-in user - every earn/spend row, newest first
+app.get('/api/user/me/points/history', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT p.point_id, p.points_earned, p.reason, p.created_at, p.group_id, p.task_id, g.subject_name, g.subject_code
+             FROM points p
+             LEFT JOIN groups g ON g.group_id = p.group_id
+             WHERE p.user_id = $1
+             ORDER BY p.created_at DESC
+             LIMIT 200`,
+            [req.user.userId]
+        );
+        res.json(result.rows.map((r) => ({
+            pointId: r.point_id,
+            pointsEarned: Number(r.points_earned),
+            reason: r.reason,
+            createdAt: r.created_at,
+            groupId: r.group_id,
+            groupLabel: r.subject_code ? `${r.subject_code} · ${r.subject_name}` : null,
+            taskId: r.task_id
+        })));
+    } catch (err) {
+        console.error('Error fetching points history:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+    }
+});
+
 // resolves a leaderboard period into a 'since' timestamp (null = all-time, no filter)
 function leaderboardSince(period) {
     const now = new Date();
