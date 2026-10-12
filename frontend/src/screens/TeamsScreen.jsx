@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { card, btnPrimary, btnGhostBlue } from '../styles/common.js';
 import { IoMdAdd, IoMdCopy, IoMdCheckmark } from 'react-icons/io';
+import MemberAvatar from '../components/MemberAvatar.jsx';
 
 const PALETTE = [
   { tint: '#EFF6FF', accent: '#2563EB' },
@@ -57,7 +58,7 @@ export default function TeamsScreen({ v }) {
         <div style={{ fontSize: 13, color: '#6B7280' }}>ยังไม่มีทีม สร้างหรือเข้าร่วมทีมได้ที่ปุ่มด้านบน</div>
       ) : (
         <div className="grid-2" style={{ gap: 18 }}>
-          {groups.map((g, i) => {
+          {groups.map((g) => {
             const { tint, accent } = PALETTE[g.groupId % PALETTE.length];
             const letter = (g.subjectName || '?').trim().charAt(0).toUpperCase();
             return (
@@ -68,6 +69,11 @@ export default function TeamsScreen({ v }) {
                 </div>
                 <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 10 }}>{g.subjectCode}</div>
                 <div style={{ fontSize: 11.5, color: '#6B7280', marginBottom: 12 }}>{g.memberCount} สมาชิก &nbsp;·&nbsp; {g.taskCount} งาน</div>
+                {g.members?.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                    {g.members.map((member) => <MemberAvatar key={member.userId} member={member} size={32} />)}
+                  </div>
+                )}
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 10.5, color: '#9CA3AF', marginBottom: 4 }}>รหัสเชิญทีม (ให้เพื่อนใช้รหัสนี้เพื่อเข้าร่วมทีมนี้)</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

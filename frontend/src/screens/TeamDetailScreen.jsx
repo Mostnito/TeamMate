@@ -5,6 +5,7 @@ import { card, cardSm, btnGhostBlue, btnPrimary, btnSecondary, label, input } fr
 import { IoMdArrowBack, IoMdAdd } from 'react-icons/io';
 import CreateTaskModal from '../components/CreateTaskModal.jsx';
 import ReportModal from '../components/ReportModal.jsx';
+import MemberAvatar from '../components/MemberAvatar.jsx';
 
 const BOARD_COLUMNS = [
   { key: 'pending', label: 'สิ่งที่ต้องทำ', color: '#6B7280' },
@@ -241,9 +242,7 @@ export default function TeamDetailScreen({ v }) {
             <div key={m.userId} style={cardSm}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div onClick={v.openUserProfile(m.publicId)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} title={`ดูโปรไฟล์ของ ${m.firstName} ${m.lastName}`}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                    {(m.firstName.charAt(0) + m.lastName.charAt(0)).toUpperCase()}
-                  </div>
+                  <MemberAvatar member={m} />
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{m.firstName} {m.lastName}</div>
                     <div style={{ fontSize: 10.5, color: '#6B7280' }}>{m.studentId}</div>

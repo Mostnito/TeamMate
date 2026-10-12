@@ -2016,7 +2016,12 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
             `SELECT g.group_id, g.group_code, g.subject_code, g.subject_name, g.advisor_name, gm.role,
                     (SELECT COUNT(*)::int FROM group_members gm2 WHERE gm2.group_id = g.group_id) AS member_count,
                     (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id) AS task_count,
-                    (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id AND t.status = 'completed') AS completed_task_count
+                    (SELECT COUNT(*)::int FROM tasks t WHERE t.group_id = g.group_id AND t.status = 'completed') AS completed_task_count,
+                    (SELECT COALESCE(json_agg(json_build_object(
+                        'userId', u.user_id, 'firstName', u.firstname, 'lastName', u.lastname, 'avatarUrl', u.avatar_path
+                    ) ORDER BY gm2.role = 'leader' DESC, u.firstname, u.user_id), '[]'::json)
+                     FROM group_members gm2 JOIN users u ON u.user_id = gm2.user_id
+                     WHERE gm2.group_id = g.group_id) AS members
              FROM group_members gm
              JOIN groups g ON g.group_id = gm.group_id
              WHERE gm.user_id = $1
@@ -2033,7 +2038,8 @@ app.get('/api/group/data', authenticateToken, async (req, res) => {
             role: r.role,
             memberCount: r.member_count,
             taskCount: r.task_count,
-            completedTaskCount: r.completed_task_count
+            completedTaskCount: r.completed_task_count,
+            members: r.members
         })));
     } catch (err) {
         console.error('Error fetching groups:', err);
