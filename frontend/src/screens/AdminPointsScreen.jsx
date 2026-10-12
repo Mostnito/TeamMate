@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { IoMdAdd, IoMdAddCircle, IoMdRemoveCircle } from 'react-icons/io';
 import { btnGhostBlue, btnPrimary, btnSecondary, input as inputStyle, label } from '../styles/common.js';
+import MemberAvatar from '../components/MemberAvatar.jsx';
 
 const PAGE_SIZE = 50;
 const EMPTY_ADJUST_FORM = { amount: '', reason: '' };
@@ -121,10 +122,13 @@ export default function AdminPointsScreen() {
                     <div
                       key={u.userId}
                       onClick={() => setSelectedUser(u)}
-                      style={{ padding: '10px 12px', borderRadius: 9, background: '#F9FAFB', cursor: 'pointer', fontSize: 12.5 }}
+                      style={{ padding: '10px 12px', borderRadius: 9, background: '#F9FAFB', cursor: 'pointer', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 10 }}
                     >
-                      <div style={{ fontWeight: 600, color: '#111827' }}>{u.firstName} {u.lastName} ({u.nickname})</div>
-                      <div style={{ color: '#6B7280', fontSize: 11 }}>{u.studentId || 'ไม่มีรหัสนิสิต'} · {u.email}</div>
+                      <MemberAvatar member={u} />
+                      <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                        <div style={{ fontWeight: 600, color: '#111827' }}>{u.firstName} {u.lastName} ({u.nickname})</div>
+                        <div style={{ color: '#6B7280', fontSize: 11 }}>{u.studentId || 'ไม่มีรหัสนิสิต'} · {u.email}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -135,8 +139,11 @@ export default function AdminPointsScreen() {
             ) : (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#EFF6FF', borderRadius: 9, padding: '10px 12px', marginBottom: 14 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{selectedUser.firstName} {selectedUser.lastName} ({selectedUser.nickname})</div>
-                  <span onClick={() => setSelectedUser(null)} style={{ fontSize: 11.5, color: '#2563EB', fontWeight: 600, cursor: 'pointer' }}>เปลี่ยน</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <MemberAvatar key={selectedUser.userId} member={selectedUser} />
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827', overflowWrap: 'anywhere' }}>{selectedUser.firstName} {selectedUser.lastName} ({selectedUser.nickname})</div>
+                  </div>
+                  <span onClick={() => setSelectedUser(null)} style={{ fontSize: 11.5, color: '#2563EB', fontWeight: 600, cursor: 'pointer', flexShrink: 0, marginLeft: 10 }}>เปลี่ยน</span>
                 </div>
                 <div style={{ marginBottom: 14 }}>
                   <div style={label}>จำนวนคะแนน</div>
