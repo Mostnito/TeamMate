@@ -2115,7 +2115,7 @@ app.get('/api/leaderboard', authenticateToken, async (req, res) => {
              FROM users u
              LEFT JOIN points p ON p.user_id = u.user_id AND ($1::timestamptz IS NULL OR p.created_at >= $1)
              LEFT JOIN shop_items s ON s.item_id = u.equipped_title_id
-             WHERE u.system_role = 'student'
+             WHERE u.system_role = 'student' AND u.is_active = true
              GROUP BY u.user_id, s.name
              ORDER BY total_points DESC, u.firstname ASC`,
             [since]
